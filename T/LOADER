@@ -1,0 +1,179 @@
+********* EDITOR LOADER ***********
+
+oscli	equ	$FFF7
+osbyte	equ	$FFF4
+oswrch	equ	$FFEE
+osrdch	equ	$FFE0
+osargs	equ	$FFDA
+poke	equ	$50
+low	equ	$51
+high	equ	$52
+screen	equ	$53
+jump	equ	$80
+
+osc	MACRO
+	ldx	#>@1
+	ldy	#<@1
+	jsr	oscli
+	ENDM
+
+	exec	entry
+
+	org	$3000
+
+entry	cli
+	lda	#200
+	ldx	#3
+	ldy	#0
+	jsr	osbyte
+	lda	#>brks
+	sta	$202
+	lda	#<brks
+	sta	$203
+	lda	#$EA
+	jsr	osbyte
+	cpx	#255
+	bne	ntube
+	brk
+	asc	'*Turn TUBE off'
+	brk
+
+ntube	ldx	#0
+	ldy	#0
+	lda	#131
+	jsr	osbyte
+	cpy	#$20
+	bcc	perfec
+	brk
+	asc	'*Ram??'
+	brk
+
+perfec	ldy	#0
+	lda	$FFB7
+	sta	$70
+	lda	$FFB8
+	sta	$71
+	sei
+reset	lda	($70),Y
+	sta	$200,Y	
+	iny
+	cpy	$FFB6
+	bne	reset
+	cli
+	lda	#1
+	sta	$70
+	lda	#>brks2
+	sta	$202
+	lda	#<brks2
+	sta	$203
+	brk
+	brk
+	asc	'The happy days are here again|M'
+	brk
+	dec	$70
+brks2	lda	#>brk3
+	sta	$202
+	lda	#<brk3
+	sta	$203
+	osc	os9
+brk3	lda	#22
+	jsr	oswrch
+	lda	#7
+	jsr	oswrch
+	lda	#23
+	jsr	oswrch
+	lda	#0
+	jsr	oswrch
+	lda	#10
+	jsr	oswrch
+	lda	#20
+	jsr	oswrch
+	lda	#0
+	jsr	oswrch	
+	jsr	oswrch
+	jsr	oswrch
+	jsr	oswrch
+	jsr	oswrch
+	jsr	oswrch
+	lda	#15
+	ldx	#0
+	ldy	#0
+	jsr	osbyte
+	lda	#229
+	ldx	#1
+	ldy	#0
+	jsr	osbyte
+	lda	#4
+	ldx	#1
+	ldy	#0
+	jsr	osbyte
+	lda	#0
+	sta	poke
+	jsr	tv
+repkey	jsr	osrdch
+	cmp	#138
+	bne	ukey
+	lda	poke
+	cmp	#$FF
+	beq	repkey
+	dec	poke
+	jsr	tv
+	jmp	repkey
+ukey	cmp	#139
+	bne	loads
+	lda	poke
+	cmp	#1
+	beq	repkey
+	inc	poke
+	jsr	tv
+	jmp	repkey
+loads	cmp	#32
+	bne	repkey
+	lda	poke
+	sta	$7BFF
+	lda	$5400
+	sta	jump
+	lda	$5401
+	sta	jump+1
+	jmp	(jump)	
+
+brks	ldy	#1
+repbrk	lda	($FD),Y
+	jsr	oswrch
+	iny
+	cmp	#0
+	bne	repbrk
+repyou	beq	repyou
+
+os9	asc	'*THE HAPPY DAYS ARE HERE AGAIN|M'
+
+tv	lda	#$90
+	ldx	poke
+	ldy	#0
+	jsr	osbyte
+	lda	#22
+	jsr	oswrch
+	lda	#7
+	jsr	oswrch
+	lda	#10
+	sta	&FE00
+	lda	#20
+	sta	&FE01
+	ldx	#4
+	lda	#$7C
+	sta	screen+1
+	lda	#$47
+	sta	high
+	lda	#0
+	sta	screen
+	sta	low
+	tay
+pokesc	lda	(low),Y
+	sta	(screen),Y
+	iny
+	bne	pokesc
+	inc	high
+	inc	screen+1
+	dex
+	bne	pokesc
+	rts

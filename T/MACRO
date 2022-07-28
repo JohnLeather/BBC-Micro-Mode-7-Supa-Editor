@@ -1,0 +1,57 @@
+****** MACRO FOR EDITOR FILE ******
+
+ADDA	MACRO
+	LDA	@1
+	CLC
+	ADC	@2
+	STA	@3
+	LDA 	@1+1
+	ADC	@2+1
+	STA	@3+1
+	ENDM
+
+ADDN	MACRO
+	LDA	@1
+	CLC
+	ADC	#>@2
+	STA	@3
+	LDA 	@1+1
+	ADC	#<@2+1
+	STA	@3+1
+	ENDM
+
+SUBA	MACRO
+	LDA	@1
+	SEC
+	SBC	@2
+	STA	@3
+	LDA	@1+1
+	SBC	@2+1
+	STA	@3+1
+	ENDM
+
+SUBN	MACRO
+	LDA	@1
+	SEC
+	SBC	#>@2
+	STA	@3
+	LDA	@1+1
+	SBC	#<@2
+	STA	@3+1
+	ENDM
+
+FIX	MACRO
+	DFB	@1
+	DFB	@2
+	DFB	@3
+	DFB	@4
+	ENDM
+
+FX	MACRO
+	LDA	#@1
+	LDX	#@2
+	LDY	#@3
+	JSR	&FFF4
+	ENDM
+
+	PUT	L.MATHS
