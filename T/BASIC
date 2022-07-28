@@ -1,993 +1,0 @@
-***** DATA TO BASIC TRANFER ******
-
-baslin	ldx	#>str2
-	ldy	#<str2
-	jsr	print
-	jsr	inputn
-	ldy	y
-	cpy	#6
-	bcc	trs1
-	lda	$700
-	cmp	#'3'
-	bcc	trs1
-	ldx	#>tbig
-	ldy	#<tbig
-	jsr	print2
-	jmp	baslin
-trs1	ldy	#0
-tranli	lda	$700,Y
-	sta	$C20,Y
-	iny
-	cpy	#6
-	bne	tranli
-	jsr	osnewl
-	ldx	#>str1
-	ldy	#<str1
-	jsr	print
-	jsr	inputn
-	ldy	#0
-trans2	lda	$700,Y
-	sta	$C28,Y
-	iny
-	cpy	#6
-	bne	trans2
-	jsr	osnewl
-	lda	#0
-	tay
-	jsr	osargs
-	cmp	#4
-	bne	notdfs
-	jsr	exists
-	jsr	ssaves
-	ldy	#0
-copyfi	lda	fname,Y
-	cmp	#13
-	beq	nothis
-	sta	$B10,Y
-	iny
-	bne	copyfi
-nothis	ldx	#>filesp
-	ldy	#<filesp
-	jsr	oscli
-notdfs	jsr	flush
-	ldx	#>spool
-	ldy	#<spool
-	jsr	oscli
-	jsr	flush
-	lda	#21
-	jsr	oswrch
-	jsr	prtlie
-	ldx	#>str1
-	ldy	#<str1
-	jsr	print
-	ldx	#>$C28
-	ldy	#<$C28
-	jsr	numbs
-	jsr	osnewl
-	lda	pam+$A
-	sta	f1
-	lda	pam+$B
-	sta	f1+1
-	jsr	prtlie
-	lda	#'C'
-	jsr	oswrch
-	lda	#'L'
-	jsr	oswrch
-	lda	#'S'
-	jsr	oswrch
-	jsr	osnewl
-	ldx	#25
-lines	txa
-	pha
-	jsr	prtlie
-	ldx	#>bprt
-	ldy	#<bprt
-	jsr	print
-	ldy	#0
-loop40	tya
-	pha
-	lda	(f1),Y
-	cmp	#'"'
-	bne	savech
-	lda	#162
-savech	ldy	#1
-gotme	cmp	teletx,Y
-	beq	savec2
-	iny
-	cpy	#4
-	beq	nomotx
-	bne	gotme
-savec2	lda	teletx-1,Y
-nomotx	jsr	oswrch
-	pla
-	tay
-	iny
-	cpy	#40
-	bcc	loop40
-	lda	#'"'
-	jsr	oswrch
-	lda	#';'
-	jsr	oswrch
-	jsr	osnewl
-	addN	f1,40,f1
-	FX	$81,0,0
-	cpy	#$1B
-	bne	nqspoo
-	lda	#6
-	jsr	oswrch
-	jmp	escape
-nqspoo	pla
-	tax
-	dex
-	bne	lines
-	jsr	prtlie
-	lda	#'='
-	jsr	oswrch
-	lda	#'0'
-	jsr	oswrch
-	jsr	osnewl	
-	jsr	close
-	lda	#6
-	jsr	oswrch
-	jsr	close
-	jmp	menu
-
-close	lda	#0
-	tay
-	jmp	osfind	
-
-prtlie	ldx	#>$C20
-	ldy	#<$C20
-	jsr	numbs
-	sty	say
-	dey
-	dey
-	bpl	updali
-	ldy	#0
-	lda	(lx),Y
-	iny
-	sta	(lx),Y
-	lda	#'1'
-	dey
-	sta	(lx),Y
-	ldy	#2
-	lda	#13
-	sta	(lx),Y
-	rts
-
-updali	lda	(lx),Y
-	clc
-	adc	#1
-	sta	(lx),Y
-	cmp	#'9'+1
-	bcc	nomore
-	lda	#'0'
-	sta	(lx),Y
-	dey
-	bpl	updali
-	ldy	say
-nomor	lda	(lx),Y
-	iny
-	sta	(lx),Y
-	dey
-	dey
-	bpl	nomor
-	iny
-	lda	#'1'
-	sta	(lx),Y
-nomore	rts
-
-numbs	stx	lx
-	sty	ly
-	ldy	#0
-numslo	lda	(lx),Y
-	cmp	#13
-	beq	numex
-	jsr	oswrch
-	iny
-	bne	numslo
-numex	rts
-
-inputn	jsr	on
-	ldy	#0
-repnum	jsr	osrdch
-	cmp	#27
-	bne	nescap
-qubas	jsr	off
-	FX	15,0,0
-	jmp	escape
-nescap	cpy	#0
-	beq	nnumde
-	cmp	#127
-	beq	delnu
-	cmp	#13
-	beq	exitnu
-nnumde	cmp	#32
-	beq	repnum
-	cpy	#5
-	bcs	repnum
-	ora	#16
-	sec
-	sbc	#'0'
-	cmp	#10
-	bcs	repnum
-	cpy	#0
-	bne	numok
-	cmp	#0
-	beq	repnum
-numok	clc
-	adc	#48
-	jsr	oswrch
-exitnu	sta	$700,Y
-	iny
-	cmp	#13
-	bne	repnum
-	sty	y
-	jmp	off
-
-delnu	jsr	oswrch
-	dey
-	jmp	repnum
-
-exists	lda	#0
-	tay
-	jsr	osargs
-	cmp	#4
-	bne	nodfs
-	lda	#$40
-	ldx	#>fname
-	ldy	#<fname
-	jsr	osfind
-	pha
-	jsr	close
-	pla
-	beq	nodfs
-	ldx	#>fextis
-	ldy	#<fextis
-	jsr	print
-	jsr	on
-	jsr	yesno
-	bne	nodfs
-	jsr	osnewl
-	jmp	any
-nodfs	rts
-
-yesno	jsr	osrdch
-	sta	sax
-	cmp	#27
-	bne	nesyn
-	jmp	qubas
-nesyn	ora	#32
-	cmp	#'y'
-	bne	nyn
-	beq	pyn
-nyn	cmp	#'n'
-	bne	yesno
-	lda	#0
-pyn	pha
-	lda	sax
-	jsr	oswrch
-	jsr	osnewl
-	jsr	off
-	pla
-	rts
-
-str1	asc	'DEF FNpage*'
-str2	asc	'BASIC line number >*'
-spol	str	'*SPOOL'
-tbig	asc	'|M|JToo big|M|G*'
-bprt	asc	'PRINT"*'
-fextis	asc	'File exists: Replace (Y/N)?|H|G*'
-
-***** ROUTINES TO DRAW LINES !! ******
-
-x%	equ	a1
-y%	equ	a1+1
-I1%	equ	a2
-I2%	equ	a2+1
-x1	equ	gx
-y1	equ	gy
-x2	equ	lx
-y2	equ	ly
-xi%	equ	ql
-yi%	equ	qh
-xic%	equ	sp1
-yic%	equ	sp2
-
-draws	ldx	#178
-	jsr	k
-	beq	draws2
-	rts
-
-draws2	ldx	gx
-	ldy	gy
-	jsr	col1
-	ldy	ly
-	ldx	lx
-	jsr	col1
-	lda	#0
-	sta	flag
-	jsr	cosave
-	lda	gx
-	cmp	lx
-	beq	oline
-	bcs	test2
-oline	lda	gy
-	cmp	ly
-	beq	setdr
-	bcs	test2
-	jmp	setdr
-
-test2	lda	gx
-	cmp	lx
-	bcc	diffdr
-oline2	lda	gy
-	cmp	ly
-	bcc	diffdr
-oline3	jsr	swapco
-
-setdr	lda	#>drawo1
-	sta	jump
-	lda	#<drawo1
-	sta	jump+1
-	jmp	drawok
-
-diffdr	lda	gy
-	cmp	ly
-	bcc	nsw
-	jsr	swapco
-nsw	lda	#>drawo2
-	sta	jump
-	lda	#<drawo2
-	sta	jump+1	
-	lda	#1
-	sta	flag
-	lda	x1
-	sec
-	sbc	x2
-	sta	x%
-	jmp	draw02
-
-drawok	lda	x2
-	sec
-	sbc	x1
-	sta	x%
-
-draw02	lda	y2
-	sec
-	sbc	y1
-	sta	y%
-
-	lda	x%
-	cmp	y%
-	bne	abc0
-	lda	x1
-	sta	I1%
-	lda	x2
-	sta	I2%
-	lda	flag
-	beq	abc1
-	lda	x2
-	sta	I1%
-	lda	x1
-	sta	I2%
-	jmp	abc1
-
-abc0	lda	x%
-	cmp	y%
-	bcc	else
-	lda	x1
-	sta	I1%
-	lda	x2
-	sta	I2%
-	lda	flag
-	beq	abc1
-	lda	x2
-	sta	I1%
-	lda	x1
-	sta	I2%
-	inc	y%
-	jmp	abc1
-
-else	lda	y1
-	sta	I1%
-	lda	y2
-	sta	I2%
-	lda	flag
-	beq	abc1
-	inc	x%
-
-abc1	lda	flag
-	bne	dr1
-	inc	x%
-	inc	y%
-dr1	lda	x1
-	cmp	x2
-	bne	abc2
-	lda	#0
-	sta	xi%
-	lda	#100
-	sta	yi%
-	jmp	abcA
-
-abc2	lda	y1
-	cmp	y2
-	bne	abc3
-	lda	#100
-	sta	xi%
-	lda	#0
-	sta	yi%
-	jmp	abcA
-
-abc3	lda	x%
-	sta	mult
-	lda	#100
-	sta	multi
-	jsr	multip
-	lda	lres
-	sta	dvid
-	lda	hres
-	sta	dvid+1
-	lda	y%
-	sta	dvis
-	lda	#0
-	sta	dvis+1
-	jsr	divisi
-	lda	hres
-	bne	high1
-	lda	lres
-	sta	xi%
-
-	cmp	#100
-	bcc	abc4	
-high1	lda	#100
-	sta	xi%
-
-abc4	lda	y%
-	sta	mult
-	lda	#100
-	sta	multi
-	jsr	multip
-	lda	lres
-	sta	dvid
-	lda	hres
-	sta	dvid+1
-	lda	x%
-	sta	dvis
-	lda	#0
-	sta	dvis+1
-	jsr	divisi
-	lda	hres
-	bne	high2
-	lda	lres
-	sta	yi%
-
-	cmp	#100
-	bcc	abcA
-high2	lda	#100
-	sta	yi%	
-
-abcA	lda	x1
-	sta	x%
-	lda	y1
-	sta	y%
-	lda	#0
-	sta	xic%
-	sta	yic%
-nomli	ldx	I1%
-	lda	#0
-	sta	$42
-	
-repica	txa
-	pha
-	lda	$C09
-	beq	justis
-	lda	$42
-	and	#1
-	beq	ncol1o
-justis	ldx	x%
-	ldy	y%
-	jsr	col1
-
-ncol1o	inc	$42
-	lda	xic%
-	clc
-	adc	xi%
-	sta	xic%
-	cmp	#100
-	bcc	lowx
-	lda	xic%
-	sec
-	sbc	#100
-	sta	xic%
-	jsr	exdraw
-
-lowx	lda	yic%
-	clc
-	adc	yi%
-	sta	yic%
-	cmp	#100
-	bcc	lowy
-	lda	yic%
-	sec
-	sbc	#100
-	sta	yic%
-	inc	y%
-
-lowy	pla
-	tax
-	inx
-	cpx	I2%
-	bcc	repica
-
-	jsr	corest
-	lda	gx
-	sta	lx
-	lda	gy
-	sta	ly
-	rts
-
-cosave	lda	lx
-	sta	lx2
-	lda	ly
-	sta	ly2
-	lda	gx
-	sta	sa1
-	lda	gy
-	sta	sa1+1
-	lda	lx
-	sta	sa1+2
-	lda	ly
-	sta	sa1+3
-	rts
-
-corest	lda	sa1
-	sta	gx
-	lda	sa1+1
-	sta	gy
-	lda	sa1+2
-	sta	lx
-	lda	sa1+3
-	sta	ly
-	rts
-
-exdraw	jmp	(jump)
-
-drawo1	inc	x%
-	rts
-
-drawo2	dec	x%
-	rts
-
-swapco	lda	lx
-	pha
-	lda	gx
-	sta	lx
-	pla
-	sta	gx
-	lda	ly
-	pha
-	lda	gy
-	sta	ly
-	pla
-	sta	gy
-	rts
-
-***** ADD CHARACTERS TO USER SPC ******
-
-startc	dfb	$90
-endc	dfb	$91
-buffer	equ	$700
-
-progrm	asc	'Start :"*'
-
-progmm	asc	'    End :"*'
-
-addch	asc	'Adding user characters*'
-
-nmore	asc	'|M|JUser VDU buffer full*'
-
-addchr	jsr	wind
-	ldx	#>addch
-	ldy	#<addch
-	jsr	print2
-	lda	#64
-	jmp	exec
-
-adduse	ldx	#>fname
-	ldy	#<fname
-	lda	#&40
-	jsr	osfind
-	bne	goadu
-	jmp	null
-goadu	sta	sa1
-	jsr	addstr
-	lda	startc
-	sta	endc
-zapget	jsr	get8
-	inc	endc
-	lda	endc
-	cmp	#127
-	bcc	nclock
-	lda	#32
-	sta	endc
-nclock	ldx	endc
-	inx
-	cpx	#127
-	bcc	compok
-	ldx	#32
-compok	cpx	startc
-	beq	eofadd
-	lda	#8
-	sta	multi
-	lda	endc
-	clc
-	sbc	#32
-	sta	mult
-	jsr	multip
-	clc
-	lda	lres
-	sta	a1
-	lda	hres
-	clc
-	adc	#$20
-	sta	a1+1
-	ldy	#0
-zapcop	lda	buffer,Y
-	sta	(a1),Y
-	iny
-	cpy	#8
-	bne	zapcop
-	jmp	zapget
-
-eofadd	ldy	sa1
-	jsr	osbget
-	bcs	filefi
-	ldx	#>nmore
-	ldy	#<nmore
-	jsr	print2
-	jsr	pause
-	jmp	filefi
-
-filefi	jsr	close
-	ldx	#>progrm
-	ldy	#<progrm
-	jsr	print
-	lda	startc
-	jsr	oswrch
-	lda	#'"'
-	jsr	oswrch
-	ldx	#>progmm
-	ldy	#<progmm
-	jsr	print
-	lda	endc
-	sta	startc
-	jsr	oswrch
-	lda	#'"'
-	jsr	oswrch
-	jsr	work
-	jmp	any
-
-filef2	dec	endc
-	lda	endc
-	cmp	#32
-	bcs	filefi
-	lda	#126
-	sta	endc
-	jmp	filefi
-
-
-get8	ldx	#0
-repge8	ldy	sa1
-	jsr	osbget
-	bcs	filef2
-	sta	buffer,X
-	inx
-	cpx	#8
-	bne	repge8
-	rts
-	
-addstr	inc	startc
-	lda	startc
-	cmp	#127
-	bcc	stok
-	lda	#32
-	sta	startc
-stok	rts
-
-******* EXIT EDITOR ******
-
-loader	lda	#22
-	jsr	oswrch
-	lda	#7
-	jsr	oswrch
-	jsr	off
-copspo	lda	orspo,Y
-	sta	$509,Y
-	iny
-	cpy	#7
-	bne	copspo	
-ssaves	lda	#32
-	ldy	#$A0
-clrB00	sta	$B00,Y
-	dey
-	bne	clrB00
-copsa	lda	orsave,Y
-	sta	$B00,Y
-	iny
-	cpy	#5
-	bne	copsa
-	ldy	#0
-copda	lda	ordata,Y
-	sta	$B90,Y
-	iny
-	cpy	#10
-	bne	copda
-	rts
-
-break	bcs	bbcres
-	rts
-
-bbcres	cli
-	ldx	#$FF
-	txs
-	ldx	#>cfiles
-	ldy	#<cfiles
-	jsr	print
-	lda	#>chfile
-	sta	$202
-	lda	#<chfile
-	sta	$203
-	ldx	#>osdfs
-	ldy	#<osdfs
-	jsr	oscli
-	ldx	#>dfs
-	ldy	#<dfs
-	jsr	print2
-	jmp	filoss
-chfile	ldx	#>tape
-	ldy	#<tape
-	jsr	print2
-filoss	lda	#0
-	sta	brkkey
-	jsr	close
-	ldx	#>syns
-	ldy	#<syns
-	jsr	print
-	FX	$7C,0,0
-	FX	$7E,0,0
-	FX	229,1,0
-	FX	4,3,0
-	jsr	on
-repopt	jsr	flush
-	jsr	osrdch
-	ora	#32
-	cmp	#'q'
-	beq	quit
-	cmp	#'w'
-	beq	warm
-	cmp	#'c'
-	bne	repopt
-	jsr	mode7
-	jmp	setup2
-quit	jsr	off
-	lda	#$24
-	sta	a1+1
-	lda	#0
-	sta	a1
-clrmem	sta	(a1),Y
-	iny
-	bne	clrmem
-	inc	a1+1
-	lda	a1+1
-	cmp	#$70
-	bne	clrmem
-	FX	200,3,0
-	FX	247,0,0
-	jmp	(&FFFC)
-
-warm	jsr	mode7
-	jsr	loader
-	ldy	#$F
-warml	lda	$8F0,Y
-	sta	$C00,Y
-	dey
-	bpl	warml
-	jmp	setup
-
-syns	asc	'|M|JBreak! Supa Editor (C)'
-	asc	' 1985 Version 2.0|M|J|J'
-	asc	'Command:Cold,Warm,Quit'
-	asc	' (C/W/Q) ?|H*'
-
-cfiles	asc	'Current filing system:*'
-tape	asc	'TAPE*'
-dfs	asc	'DFS*'
-orspo	asc	'*SPOOL '
-orsave	asc	'*SAVE'
-ordata	str	'8000 +5FF'
-
-mineos	sty	a1
-	lda	$40
-	cmp	#2
-	beq	mostab
-	cmp	#1
-	beq	mosadd
-	cmp	#3
-	bne	mcomex
-	jmp	copyri
-mcomex	cmp	#5
-	bne	nremov
-	jsr	remove
-nremov	rts
-
-merr1	brk
-	asc	'*Syntax: *SETADD "<Character>"'
-	brk
-
-mostab	jsr	strips
-	cmp	#'"'
-	bne	merr1
-	iny
-	inc	a1
-	lda	$6FF,Y
-	pha
-	iny
-	inc	a1
-	lda	$6FF,Y
-	cmp	#'"'
-	bne	merr1
-	jsr	strips
-	cmp	#13
-	bne	merr1
-	pla
-	cmp	#32
-	bne	notbou
-	lda	#127
-notbou	sta	startc
-	dec	startc
-	jmp	any
-
-strips	ldy	a1
-morein	iny
-	lda	$6FF,Y
-	cmp	#32
-	beq	morein
-	sty	a1
-	rts
-
-mosadd	lda	a1
-	sta	a2
-	jsr	strips
-	sec
-	sbc	#'0'
-	sta	multi
-	cmp	#10
-	bcs	merr2
-	jsr	strips
-	cmp	#13
-	beq	mnums
-	lda	a2
-	sta	a1
-	jsr	strips
-	sec
-	sbc	#'0'
-	sta	mult
-	cmp	#4
-	bcs	merr2
-	iny
-	inc	a1
-	lda	$6FF,Y
-	sec
-	sbc	#'0'
-	pha
-	cmp	#10
-	bcs	merr2
-	lda	#10
-	sta	multi
-	jsr	strips
-	cmp	#13
-	bne	merr2
-	jsr	multip
-	pla
-	clc
-	adc	lres
-	sta	systab
-	jmp	any
-
-mnums	lda	multi
-	sta	systab
-	jmp	any
-
-merr2	brk
-	asc	'*Syntax: *SETTAB <Number 0-39>'
-	brk
-
-nuhelp	rts
-
-helpin	lda	helps
-	beq	nuhelp
-	lda	#9
-	jsr	workout+3
-	jsr	copyf2
-	lda	#4
-morepa	pha
-	jsr	workout+3
-	jsr	copyf
-gspcke	jsr	osrdch
-	cmp	#27
-	beq	nmorep
-	cmp	#13
-	bne	gspcke
-	pla
-	tax
-	inx
-	txa
-	cpx	#8
-	bne	morepa
-	beq	jjump
-nmorep	pla
-jjump	lda	#9
-	jsr	workout+3
-	jmp	copyf
-
-teletx	ASC	'`#_`'
-
-tupdat	jsr	off
-	lda	#134
-	jsr	osbyte			;GET POS,VPOS
-	stx	free
-	sty	free+1
-	lda	#9
-	jsr	workou+3
-	jsr	copyf2
-	locate	ovwrmo
-	jsr	print
-	lda	overw
-	asl	A
-	tay
-	lda	TtabS,Y
-	tax
-	lda	TtabS+1,Y
-	tay
-	jsr	print
-	jsr	flush
-rtget	jsr	osrdch
-	cmp	#13
-	bne	rtget
-	lda	#9
-	jsr	workou+3
-	jsr	copyf
-	ldx	free
-	ldy	free+1
-	jsr	tab
-	jsr	on
-	ldx	#201	
-	jsr	untilf
-	jmp	flush
-
-mode7	lda	#$90
-	ldx	$7BFF
-	ldy	#0
-	jsr	osbyte
-	lda	#22
-	jsr	oswrch
-	lda	#7
-	jmp	oswrch
-
-
-TtabS	dw	tmo_1
-	dw	tmo_2
-
-tmo_1	dfb	31
-	dfb	19
-	dfb	0
-	asc	'INSERT*'
-
-tmo_2	dfb	31
-	dfb	19
-	dfb	0
-	asc	'OVER WRITE*'
-
-ovwrmo	dfb	26
-	asc	'WRITTING TYPE MODE:             <RETURN>*'

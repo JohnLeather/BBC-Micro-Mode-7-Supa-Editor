@@ -1,1321 +1,0 @@
-******* EDITOR SOURCE CODE 1 *******
-
-xxxx	equ	$D0
-
-oshwm	dw	$2000
-	dw	$4B00
-	dw	$4E00
-	dw	$5100
-
-base	dw	$0201
-	dw	$0804
-	dw	$4010
-
-data	dfb	14
-	dfb	0
-	dfb	0
-	dfb	1
-	dfb	0
-	dfb	1
-	dfb	0
-	dfb	0
-	dfb	0
-	dfb	0
-	dfb	0
-
-data2	dfb	$2
-	dfb	$1
-	dfb	$0
-
-prt1	dfb	26
-	dfb	12
-	dfb	31
-	dfb	10
-	dfb	0
-	dfb	141
-	dfb	red
-	asc	'Supa Editor'
-	dfb	31
-	dfb	10
-	dfb	1
-	dfb	141
-	dfb	red
-	asc	'Supa Editor'
-	dfb	31
-	dfb	4
-	dfb	5
-	dfb	green
-	asc	'T'
-	dfb	yellow
-	asc	'or'
-	dfb	green
-	asc	'G'
-	dfb	yellow
-	asc	'to edit current page'
-	dfb	31
-	dfb	4
-	dfb	7
-	dfb	green
-	asc	'S'
-	dfb	yellow
-	asc	'to save current page'
-	dfb	31
-	dfb	4
-	dfb	9
-	dfb	green
-	asc	'L'
-	dfb	yellow
-	asc	'to load current page'
-	dfb	31
-	dfb	4
-	dfb	11
-	dfb	green
-	asc	'P'
-	dfb	yellow
-	asc	'to change parameters'
-	dfb	31
-	dfb	4
-	dfb	13
-	dfb	green
-	asc	'A'
-	dfb	yellow
-	asc	'to add user characters'
-	dfb	31
-	dfb	4
-	dfb	16
-	dfb	yellow
-	asc	'Current page being used'
-	dfb	green
-	dfb	31
-	dfb	4
-	dfb	18
-	dfb	yellow
-	asc	'Page last backed up'
-	dfb	green
-	asc	'*'
-
-prt2	dfb	28
-	dfb	2
-	dfb	24
-	dfb	39
-	dfb	15
-	dfb	12
-	asc	'*'
-
-prt3	asc	'Save selected*'
-
-prt4	asc	'Old file name:*'
-
-prt5	asc	'File name:*'
-
-prt6	asc	'Load selected*'
-
-prt8	asc	'Press any key*'
-
-prt9	dfb	12
-	dfb	31
-	dfb	12
-	dfb	0
-	dfb	141
-	asc	'Parameters'
-	dfb	31
-	dfb	12
-	dfb	1
-	dfb	141
-	asc	'Parameters'
-	dfb	31
-	dfb	3
-	dfb	4
-	asc	'Fill pattern'
-	dfb	31
-	dfb	3
-	dfb	6
-	asc	'Graphic cursor	speed'
-	dfb	31
-	dfb	3
-	dfb	8
-	asc	'Side colour'
-	dfb	31
-	dfb	3
-	dfb	10
-	asc	'F-Key'
-	dfb	31
-	dfb	15
-	dfb	10
-	asc	'= next line?'
-	dfb	31
-	dfb	3
-	dfb	12
-	asc	'F-key+SHIFT = next line?'
-	dfb	31
-	dfb	3
-	dfb	14
-	asc	'F-key+CTRL  = next line?'
-	dfb	31
-	dfb	3
-	dfb	16
-	asc	'BASIC output file'
-	dfb	31
-	dfb	3
-	dfb	18
-	asc	'Character set'
-	dfb	31
-	dfb	3
-	dfb	20
-	asc	'Largement size'
-	dfb	31
-	dfb	3
-	dfb	22
-	asc	'Line type'
-	dfb	31
-	dfb	31
-	dfb	24
-	asc	'<RETURN>*'
-
-null	brk
-	asc	'*File not found'
-	brk
-
-room	brk
-	asc	'*No room'
-	brk
-
-badchr	brk
-	asc	'*|M|JBad data file'
-	brk
-
-xtra	brk
-	asc	'*|M|JFile too big'
-	brk
-
-short	brk
-	asc	'*|M|JShort?'
-	brk
-
-escape	brk
-	asc	'*'
-	dfb	10
-	dfb	13
-	asc	'Escape'
-	brk
-
-f0	dfb	140
-	dfb	141
-	dfb	156
-	dfb	157
-	dfb	154
-	dfb	158
-	dfb	159
-	dfb	255
-
-flush	fx	15,0,0
-	rts
-
-print	stx	a1
-	sty	a1+1
-	ldy	#0
-ptloop	lda	(a1),Y
-	cmp	#'*'
-	beq	prtqut
-	jsr	oswrch
-	iny
-	bne	ptloop
-prtqut	rts
-
-pos	cpx	#78
-	bcs	range
-	cpy	#75
-	bcs	range
-	stx	x
-	lda	#31
-	jsr	oswrch
-	txa
-	lsr	A
-	clc
-	adc	#1
-	jsr	oswrch
-	tya
-	ldx	#24
-div3	sec
-	sbc	#3
-	bmi	nec
-	dex
-	bpl	div3
-nec	clc
-	adc	#3
-	tay
-	lda	data2,Y
-	asl	A
-	sta	y
-	stx	mult
-	txa
-	jsr	oswrch
-	lda	x
-	and	#1
-	clc
-	adc	y
-	tay
-	lda	base,Y
-	sta	y
-	lda	#135
-	jsr	osbyte
-	txa
-	cmp	#32
-	beq	blank
-	cmp	#160
-	bcs	blank
-range	pla
-	pla
-blank	rts
-
-pos2	cpx	#78
-	bcs	range2
-	cpy	#75
-	bcs	range2
-	stx	x
-	txa
-	lsr	A
-	clc
-	adc	#1
-	sta	$40
-	tya
-	ldx	#24
-div32	sec
-	sbc	#3
-	bmi	nec2
-	dex
-	bpl	div32
-nec2	clc
-	adc	#3
-	tay
-	lda	data2,Y
-	asl	A
-	sta	y
-	stx	mult
-	lda	#40
-	sta	multi
-	jsr	multip
-	lda	lres
-	clc
-	adc	$40
-	sta	lres
-	lda	hres
-	adc	#$47
-	sta	hres
-	lda	x
-	and	#1
-	clc
-	adc	y
-	tay
-	lda	base,Y
-	sta	y
-	ldy	#0
-	lda	(lres),Y
-	cmp	#32
-	beq	blank2
-	cmp	#160
-	bcs	blank2
-range2	pla
-	pla
-blank2	rts
-
-swapd	lda	#0
-	sec
-	sbc	dvid
-	sta	dvid
-	lda	#0
-	sbc	dvid+1
-	sta	dvid+1
-	rts
-
-multip	ldx	#8
-	lda	#0
-again	lsr	mult
-	bcc	over
-	clc
-	adc	multi
-over	ror	A
-	ror	lres
-	dex
-	bne	again
-	sta	hres
-	rts
-
-divisi	lda	#0
-	sta	minus
-	lda	dvid+1
-	bpl	posit
-	inc	minus
-	jsr	swapd
-posit	lda	#0
-	sta	quoth
-	ldx	#16
-divlo	asl	dvid
-	rol	dvid+1
-	rol	A
-	tay
-	rol	quoth
-	cmp	dvis
-	lda	quoth
-	sbc	dvis+1
-	bcc	less
-	tya
-	sbc	dvis
-	tay
-	lda	quoth
-	sbc	dvis+1
-	sta	quoth
-	inc	dvid
-less	tya
-	dex
-	bne	divlo
-	sta	quoth+1
-	lda	minus
-	beq	plus
-	jsr	swapd
-plus	rts
-
-k	stx	savek
-	lda	#$79
-	jsr	osbyte
-	cpx	savek
-	rts
-
-print2	jsr	print
-ret	jsr	osnewl
-	jmp	osnewl
-	
-eorc	jsr	pos
-	eor	y
-	ora	#128
-	jmp	oswrch
-
-phyc	jsr	pos
-	ora	y
-conti	ora	#128
-	jmp	oswrch
-
-blkc	jsr	pos
-	sta	x
-	eor	y
-	cmp	x
-	bcc	conti
-	rts
-
-getpo	sty	say
-	lda	#0
-	sta	flag
-	jsr	pos
-	sta	x
-	eor	y
-	cmp	x
-	bcs	same
-	inc	flag
-same	lda	flag
-	rts
-
-getpo2	sty	say
-	lda	#0
-	sta	flag
-	jsr	pos2
-	sta	x
-	eor	y
-	cmp	x
-	bcs	same2
-	inc	flag
-same2	lda	flag
-	rts
-
-pause	ldx	#8
-lpa	txa
-	pha
-	lda	#19
-	jsr	osbyte
-	pla
-	tax
-	dex
-	bne	lpa
-	rts
-
-spos	lda	#$86
-	jsr	osbyte
-	stx	a1
-	sty	a1+1
-	rts
-
-dpos	ldx	a1
-	ldy	a1+1
-
-tab	lda	#31
-	jsr	oswrch
-	txa
-	jsr	oswrch
-	tya
-	jmp	oswrch
-
-getu	fix	1,0,1,0
-	fix	0,1,0,1
-	fix	1,1,0,0
-	fix	0,0,1,1
-	fix	1,1,1,0
-	fix	1,1,0,1
-	fix	0,1,1,1
-	fix	1,0,1,1
-	fix	0,0,0,1
-	fix	0,0,1,0
-	fix	1,0,0,0
-	fix	0,1,0,0
-	fix	0,1,1,0
-	fix	1,0,0,1
-	fix	1,1,1,1
-	fix	1,1,1,1
-	fix	1,1,1,1
-	fix	1,1,0,0
-	fix	0,0,1,1
-	fix	1,1,1,1
-	fix	1,1,1,1
-	fix	1,1,1,1
-	fix	1,1,1,1
-	fix	0,0,1,1
-	fix	0,0,1,1
-	fix	1,1,0,0
-	fix	1,1,0,0
-	fix	1,1,1,1
-	fix	1,1,1,1
-	fix	1,1,1,1
-
-initf	lda	#0
-	sta	ql
-	sta	qh
-	sty	say
-	stx	sax
-	jsr	incstk
-	jsr	incstk
-	jsr	decstk
-	jsr	getpo
-	cmp	notg
-	beq	dofilt
-	lda	#7
-	jsr	oswrch
-	jmp	pause
-	
-dofilt	ldy	say
-	ldx	sax
-	bpl	repfil
-	jsr	getpo
-repfil	jsr	fill
-	lda	ql
-	cmp	qh
-	bne	repfil
-	ldx	#195
-	jmp	untilf
-
-fill	lda	#0
-	sta	lbit
-	sta	rbit
-	jsr	decstk
-	jsr	getpo
-	cmp	notg
-	beq	lofill
-	rts
-lofill	ldy	say
-	bmi	bottom
-	dey
-	ldx	sax
-	jsr	getpo
-	cmp	notg
-	beq	lofill
-bottom	inc	say
-nullst	ldy	say
-	ldx	sax
-	jsr	coli
-fry	ldx	sax
-	dex
-	bmi	resetl
-	ldy	say
-	jsr	getpo
-	cmp	notg
-	bne	resetl
-	lda	lbit
-	bne	carryl
-	ldx	sax
-	dex
-	jsr	fetch
-	beq	resetl
-	inc	lbit
-	ldy	say
-	jsr	incstk
-	jmp	carryl
-resetl	lda	#0
-	sta	lbit
-carryl	ldx	sax
-	cpx	#77
-	bcs	carryr
-	inx
-	ldy	say
-	jsr	getpo
-	cmp	notg
-	bne	resetr
-	lda	rbit
-	bne	carryr
-	ldx	sax
-	inx
-	jsr	fetch
-	beq	resetr
-	inc	rbit
-	ldy	say
-	jsr	incstk
-	jmp	carryr
-resetr	lda	#0
-	sta	rbit
-carryr	ldx	sax
-	inc	say
-	ldy	say
-	cpy	#75
-	bcs	fillex
-	jsr	getpo
-	cmp	notg
-	beq	nullst
-fillex	rts
-
-decstk	ldy	ql
-	lda	stl,Y
-	tax
-	lda	sth,Y
-	tay
-	inc	ql
-	stx	sax
-	sty	say
-	rts
-
-incstk	tya
-	pha
-	ldy	qh
-	sta	sth,Y
-	txa
-	sta	stl,Y
-	inc	qh
-	pla
-	tay
-	rts
-
-gskey	lda	#&76
-	jsr	osbyte
-	txa
-	lsr	A
-	sta	skey
-	rts
-
-coli	lda	#0
-	sta	a2
-	jsr	what
-	ldx	sax
-	cmp	#1
-	bne	ncola
-	ldy	say
-	jsr	col1
-ncola	rts
-
-what	txa
-	and	#1
-	sta	a1
-	lda	say
-	and	#1
-	asl	A
-	clc
-	adc	a1
-	sta	a1
-	lda	fillp
-	asl	A
-	asl	A
-	clc
-	adc	a2
-	clc
-	adc	a1
-	tay
-	lda	getu,Y
-	rts
-
-fetch	txa
-	pha
-	tya
-	pha
-	lda	#60
-	sta	a2
-	jsr	what
-	sta	flag
-	pla
-	tay
-	pla
-	tax
-	lda	flag
-	rts
-
-wind	lda	#0
-	sta	xxxx
-	LOCATE	prt2
-	jmp	print
-
-col0	lda	gcol
-	beq	chan1
-chan0	jmp	blkc
-
-col1	lda	gcol
-	beq	chan0
-chan1	jmp	phyc
-
-icir	lda	gx
-	sec
-	sbc	lx
-	bpl	found
-	lda	lx
-	sec
-	sbc	gx
-found	sta	mult
-	lda	#qualit
-	sta	multi
-	jsr	multip
-	lda	lres
-	sta	a2
-	lda	hres
-	sta	a2+1
-	lda	#0
-	sta	a1
-	sta	a1+1
-circle	ldy	#<for
-cloop2	tya
-	pha
-	ldx	#>for
-cloopo	txa
-	pha
-	lda	a2
-	sta	dvid
-	lda	a2+1
-	sta	dvid+1
-	lda	#smooth
-	sta	dvis
-	lda	#0
-	sta	dvis+1
-	jsr	divisi
-	subA	a1,lres,a1
-	lda	a1
-	sta	dvid
-	lda	a1+1
-	sta	dvid+1
-	lda	#smooth
-	sta	dvis
-	lda	#0
-	sta	dvis+1
-	jsr	divisi
-	addA	a2,lres,a2
-	lda	a1
-	sta	dvid
-	lda	a1+1
-	sta	dvid+1
-	lda	#qualit
-	sta	dvis
-	lda	#0
-	sta	dvis+1
-	jsr	divisi
-	lda	lres
-	clc
-	adc	lx
-	sta	x
-	lda	a2
-	sta	dvid
-	lda	a2+1
-	sta	dvid+1
-	lda	#qualit
-	sta	dvis
-	lda	#0
-	sta	dvis+1
-	jsr	divisi
-	lda	lres
-	clc
-	adc	ly
-	tay
-	ldx	x
-	jsr	col1
-	pla
-	tax
-	dex
-	bne	cloopo
-	pla
-	tay
-	dey
-	beq	en2
-	jmp	cloop2
-en2	rts
-
-yli	sta	flag
-	ldy	#24
-vlo	jsr	tab
-	lda	flag
-	jsr	oswrch
-	dey
-	bpl	vlo
-	rts
-
-lup	dw	z5
-	dw	z2
-	dw	z3
-	dw	z4
-	dw	z4
-	dw	z4
-	dw	z4
-	dw	z1
-	dw	z7
-	dw	z6
-
-z1	dfb	4-1
-	asc	'Use^r'
-	asc	'Old fashio^n'
-	asc	'Space typ^e'
-	asc	'Scribl^e'
-
-z2	dfb	3-1
-	asc	'Fas^t'
-	asc	'Mediu^m'
-	asc	'Slo^w'
-
-z3	dfb	7-1
-	asc	'Re^d'
-	asc	'Gree^n'
-	asc	'Yello^w'
-	asc	'Blu^e'
-	asc	'Magent^a''
-	asc	'Cya^n''
-	asc	'Whit^e'
-
-z4	dfb	2-1
-	asc	'N^o'
-	asc	'Ye^s'
-
-z5	dfb	15-1
-	asc	'^4^h^,^p^<^l^x^t^`^0^$^(^8^d'
-	dfb	252
-
-z6	dfb	2-1
-	asc	'Norma^l'
-	asc	'Broke^n'
-
-z7	dfb	8-1
-	asc	'1 by ^2'
-	asc	'1 by ^3'
-	asc	'2 by ^1'
-	asc	'2 by ^2'
-	asc	'2 by ^3'
-	asc	'3 by ^1'
-	asc	'3 by ^2'
-	asc	'3 by ^3'	
-
-enlarg	dfb	1,2
-	dfb	1,3
-	dfb	2,1
-	dfb	2,2
-	dfb	2,3
-	dfb	3,1
-	dfb	3,2
-	dfb	3,3
-
-getopt	sta	a2
-	asl	A
-	tay
-	lda	lup,Y
-	sta	a1
-	lda	lup+1,Y
-	sta	a1+1
-	rts
-
-pcat	pha
-	jsr	getopt
-	ldx	#28
-	tya
-	clc
-	adc	#4
-	tay
-	jsr	tab
-	lda	a2
-	beq	sysa
-	txa
-	pha
-	ldx	#10
-clia	lda	#32
-	jsr	oswrch
-	dex
-	bpl	clia
-	pla
-	tax
-	jsr	tab
-sysa	ldy	#0
-	lda	(a1),Y
-	sta	a2+1
-	ldy	a2
-	lda	$C00,Y
-	tax
-	inx
-	stx	x
-	ldy	#1
-repprt	lda	(a1),Y
-	cpx	#1
-	bne	nprtme
-	jsr	oswrch
-nprtme	cmp	#0
-	bmi	endlst
-	iny
-	bne	repprt
-endlst	iny
-	dex
-	bne	repprt
-	pla
-	rts
-
-pram	lda	#0
-	sta	opti
-	LOCATE	prt9
-	jsr	print
-	ldx	#2
-	lda	#130
-	jsr	yli
-	ldx	#27
-	lda	#white
-	jsr	yli
-	lda	#blue
-	ldx	#0
-	jsr	yli
-	ldx	#26
-	ldy	#4
-	jsr	tab
-	lda	#white+gra
-	jsr	oswrch
-	lda	#']'
-	jsr	oswrch
-	jsr	oswrch
-	lda	#'['
-	jsr	oswrch
-	ldy	#9
-lst	tya
-	jsr	pcat
-	tay
-	dey
-	bpl	lst
-repico	lda	#157
-	jsr	high
-repki	jsr	flush
-	jsr	osrdch
-	cmp	#13
-	bne	no0
-	jmp	pause
-no0	cmp	#138
-	bne	no2
-	lda	#32
-	jsr	high
-	inc	opti
-	lda	opti
-	cmp	#10
-	bcc	repico
-	lda	#0
-	sta	opti
-	beq	repico
-no2	cmp	#139
-	bne	no3
-	lda	#32
-	jsr	high
-	dec	opti
-	lda	opti
-	bpl	repico
-	lda	#9
-	sta	opti
-	bne	repico
-no3	cmp	#136
-	bne	no4
-	lda	opti
-	jsr	getopt
-	ldy	#0
-	lda	(a1),Y
-	sta	a2
-	ldy	opti
-	lda	$C00,Y
-	sec
-	sbc	#1
-	sta	$C00,Y
-	bpl	displ
-	lda	a2
-	sta	$C00,Y
-displ	lda	opti
-	jsr	pcat
-	bpl	repki
-no4	cmp	#137
-	bne	no5
-	lda	opti
-	jsr	getopt
-	ldy	#0
-	lda	(a1),Y
-	sta	a2
-	ldy	opti
-	lda	$C00,Y
-	clc
-	adc	#1
-	sta	$C00,Y
-	cmp	a2
-	bcc	displ
-	beq	displ
-	lda	#0
-	sta	$C00,Y
-	beq	displ
-no5	jmp	repki
-
-high	ldx	#1
-	pha
-	lda	opti
-	asl	A
-	clc
-	adc	#4
-	tay
-	jsr	tab
-	pla
-	jmp	oswrch
-
-Fpos	jsr	spos
-	stx	x
-	sty	mult
-	lda	#40
-	sta	multi
-	jsr	multip
-	clc
-	lda	lres
-	adc	via
-	sta	a1
-	lda	hres
-	adc	via+1
-	sta	a1+1
-	lda	x
-	cmp	#39
-	bcc	scrok
-	pla
-	pla
-scrok	lda	#0
-	sta	a2
-	rts
-
-delque	lda	#19
-	jsr	osbyte
-	jsr	osbyte
-	jmp	osbyte
-
-textI	jsr	Fpos
-	jsr	delque
-	ldy	#39
-sc1	dey
-	lda	(a1),Y
-	iny
-	sta	(a1),Y
-	dey
-	cpy	x
-	bne	sc1
-zx	lda	#32
-	sta	(a1),Y
-	lda	#19
-	jsr	pause
-ma	pla
-	pla
-	pla
-	pla
-	pla
-	pla
-	jmp	textl
-
-textB	jsr	Fpos
-	jsr	delque
-	ldy	x
-sc2	iny
-	lda	(a1),Y
-	dey
-	sta	(a1),Y
-	iny
-	cpy	#39
-	bne	sc2
-	beq	zx
-
-EX	ldx	#153
-	jsr	k
-	bne	niseR
-	jsr	textB
-niseR	ldx	#249
-	jsr	k
-	bne	dpr
-	jsr	textI
-
-dpr	ldx	#169
-	jsr	k
-	bne	dpr2
-	jsr	worksc
-	addN	a2,40,f2
-	ldy	#0
-	inc	f1+1
-reppu2	lda	(a2),Y
-	sta	(f2),Y
-	subN	a2,1,a2
-	subN	f2,1,f2
-	lda	a2+1
-	cmp	via+1
-	bcc	err
-	cmp	f1+1
-	bcs	reppu2
-	lda	a2
-	cmp	f1
-	bcs	reppu2
-err	jsr	dpos
-	jsr	cline
-	jmp	pause
-dpr3	rts
-dpr2	ldx	#185
-	jsr	k
-	bne	dpr3
-	jsr	worksc
-	ldy	#0
-reppu	lda	(f2),Y
-	sta	(f1),Y
-	addN	f1,1,f1
-	addN	f2,1,f2
-	lda	f2+1
-	cmp	a2+1
-	bcc	reppu
-	lda	f2
-	cmp	a2
-	bcc	reppu
-	ldy	#24
-	jsr	cline
-	jsr	dpos
-	jmp	pause
-
-worksc	jsr	spos
-	jsr	tab
-	lda	#40
-	sta	mult
-	sty	multi
-	lda	#0
-	sta	mult+1
-	sta	multi+1
-	jsr	multip
-	jsr	dpos
-	lda	lres
-	clc
-	adc	via
-	sta	f1
-	lda	hres
-	adc	#0
-	sta	f1+1
-	adc	via+1
-	sta	f1+1
-	addN	f1,40,f2
-	addN	via,$3E8,a2
-	rts
-
-cline	ldx	#0
-	jsr	tab
-	jsr	off
-	lda	#19
-	jsr	osbyte
-	ldx	#40
-	lda	#32
-cli1	jsr	oswrch
-	dex
-	bne	cli1
-	jsr	dpos
-
-on	lda	#16
-	pha
-	bpl	doom
-off	lda	#20
-	pha
-doom	FX	$97,0,10
-	pla
-	tay
-	lda	#$97
-	ldx	#1
-	jmp	osbyte
-
-reset	ldy	#0
-rest	lda	data,Y
-	sta	$C00,Y
-	iny
-	cpy	#$A
-	bne	rest
-	LOCATE	pages
-	stx	a1
-	sty	a1+1
-	ldy	#0
-	ldx	#4*9
-	lda	helps
-	beq	destry
-	ldx	#4*4
-destry	lda	#32
-il2	sta	(a1),Y
-	iny
-	bne	il2
-	inc	a1+1
-	dex
-	bne	il2
-	lda	#>backup
-	sta	a1
-	lda	#<backup
-	sta	a1+1
-	ldx	#4
-	ldy	#0
-	lda	#32
-clrbku	sta	(a1),Y
-	iny
-	bne	clrbku
-	inc	a1+1
-	dex
-	bne	clrbku
-
-work	LOCATE	option
-	jsr	oscli
-	lda	$C02
-	clc
-	adc	#red+gra
-	sta	chr
-	lda	$C00
-	sta	fillp
-	ldy	#$F
-saoldv	lda	$C00,Y
-	sta	$8F0,Y
-	dey
-	bpl	saoldv
-	rts
-
-prtnum	clc
-	adc	#49
-	jmp	oswrch
-
-oscom	asc	'settab*'
-	asc	'setadd*'
-	asc	'id*'
-	asc	'help*'
-	asc	'nohelp*'
-	asc	'tape*'
-	asc	'disk*'
-	asc	'disc*'
-	asc	'drive*'
-	asc	'dir*'
-	asc	'access*'
-	asc	'cat*'
-	asc	'delete*'
-	asc	'lib*'
-	asc	'rename*'
-	asc	'wipe*'
-	asc	'%'
-
-osdfs	str	'DISK'
-	
-soscli	lda	xxxx
-	and	#%11111101
-	sta	xxxx
-	lda	#'*'
-	jsr	oswrch
-	lda	#0
-	sta	$40
-	jsr	ioli
-	jsr	osnewl
-	FX	229,0,0
-	ldy	#0
-strip	lda	$700,Y
-	cmp	#32
-	bne	dones
-dones2	iny
-	bne	strip
-dones	cmp	#'*'
-	beq	dones2
-	sty	$8F
-	ldx	#0
-ostab2	ldy	$8F
-	inc	$40
-ostab1	lda	oscom,X
-	cmp	#'*'
-	beq	oscok
-	cmp	#'%'
-	beq	user
-	iny
-	inx
-	pha
-	lda	$6FF,Y
-	ora	#32
-	sta	a1
-	pla
-	cmp	a1
-	beq	ostab1
-nextta	lda	oscom,X
-	inx
-	cmp	#'*'
-	beq	ostab2
-	bne	nextta
-
-oscok	iny
-	lda	$6FF,Y
-	cmp	#32
-	beq	goodos
-	lda	#13
-	sta	$6FF,Y
-goodos	dey
-	jsr	mineos
-	ldx	#0
-	ldy	#7
-	jsr	oscli
-	LOCATE	option
-	jsr	oscli
-	lda	$40
-	cmp	#4
-	bne	nhelps
-	LOCATE	helped
-	jsr	print
-nhelps	ldy	#0
-	tya
-	jsr	osargs
-	cmp	#4
-	beq	dfsmod
-	LOCATE	optio
-	jsr	oscli
-dfsmod	jmp	any
-
-optio	str	'*OPT 2,1'
-
-user	brk
-	asc	'*Command not in use'
-	brk
-
-copyri	brk
-	asc	'*By John Leather'
-	brk
-
-helped	str	'|M|JSupa Editor 2.00|J|J'
-	str	'  SETADD "<Character>"|J'
-	str	'  SETTAB <Number 0-39>|J'
-	str	'  NOHELP|J'
-	asc	'*'
-
-remove	lda	helps
-	beq	daft
-	lda	#0
-	sta	helps
-	tay
-	lda	#>pages+$1000
-	sta	a1
-	lda	#<pages+$1000
-	sta	a1+1
-	lda	#32
-	ldx	#4*4
-fillsp	sta	(a1),Y
-	iny
-	bne	fillsp
-	inc	a1+1
-	dex
-	bne	fillsp
-	jmp	any
-
-daft	brk
-	asc	'*Already removed!'
-	brk
-	
-	CHN	"T.EDIT2"
