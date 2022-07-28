@@ -1,0 +1,1898 @@
+***** SOURCE FILE FOR EDIT2 *****
+
+	EXEC	setup0
+
+setup0	lda	#1
+	sta	helps			;HELP PAGE FLAG
+	FX	200,0,0			;DON'T CLEAR MEMORY ON BREAK
+	FX	247,$4C,0		;SET BREAK VECTOR
+	FX	248,>foolme,0
+	FX	249,<foolme,0
+	jmp	(&FFFC)			;SAME AS PRESSING BREAK
+
+foolme	bcs	setup2			;BREAK VECTOR ENTRY
+	rts
+
+ostaps	str	'*TAPE'
+
+setup2	cli				;KEYBRD	ON
+	lda	#31
+	sta	startc
+	ldx	#3			;3*256
+	ldy	#0			;OFF SET
+	sty	a1
+	sty	a2
+	sty	systab
+	lda	#$C0			;POINT $C000 TO PICK UP OS CHAR SET
+	sta	a1+1
+	lda	#$20			;STA ADDRESS $2000
+	sta	a2+1
+repcop	lda	(a1),Y			;ROTINE TO DL
+	sta	(a2),Y
+	iny
+	bne	repcop
+	inc	a1+1
+	inc	a2+1
+	dex
+	bne	repcop
+	FX	247,$4C,0		;SETUP NEW BRK VECTOR
+	FX	248,>break,0
+	FX	249,<break,0
+	jsr	loader			;RESET EDITOR 1
+	jsr	reset			;RESET EDITOR2
+	lda	#14
+	sta	lpage			;LAST BACK UP PAGE
+	lda	#0
+	sta	cpage			;EDITING CURRENT PAGE
+	lda	#$D
+	sta	fname			;NULL FILE NAME$
+	lda	#0
+	sta	file			;RECORD FOR SAVED BEFORE
+setup	lda	#>setupz
+	sta	$202
+	lda	#<setupz
+	sta	$203
+	LOCATE	osdfs
+	jsr	oscli
+	jmp	setin
+setupz	LOCATE	ostaps
+	jsr	oscli
+setin	jsr	work			;SET UP EDITOR3
+	lda	#>errorv		;SET UP ERROR VECTOR
+	sta	$202
+	lda	#<errorv
+	sta	$203
+	FX	211,3,0
+	lda	#>pages			;PTR TO PAGES
+	sta	a1
+	lda	#<pages
+	sta	a1+1
+	ldy	#$20
+pams	sta	pam,Y
+	dey
+	bne	pams
+	lda	#>fname			;OS SAVING, PUT ADDRESS OF FILE NAME$ IN PARAM BLOCK
+	sta	pam
+	lda	#<fname
+	sta	pam+1
+	ldx	#0			;SCREEN START ADDRESS $7C00
+	stx	via
+	ldy	#$7C
+	sty	via+1
+	FX	4,3,0			;SET CURSOR KEYS
+	FX	225,247,0		;SET FUNCTIONS KEYS
+	FX	226,227,0
+	FX	227,237,0
+	jmp	menu			;MAIN PROG
+
+clrex	lda	#$7E			;RESET ESCAPE KEY
+	jsr	osbyte
+	lda	#$7C
+	jmp	osbyte
+
+errorv	lda	$FE			;ERROR ROUTINES HERE
+	cmp	#$80
+	bcc	nolis
+	jsr	osnewl
+nolis	lda	xxxx
+	and	#254
+	sta	xxxx
+	jsr	close			;CLOSE OPEN FILES
+	ldy	#1			;DON'T WANT ERR NO
+lao	lda	($FD),Y
+	beq	any
+	jsr	oswrch			;PRT ERROR MESS
+	iny
+	bne	lao
+
+any	ldx	#$FF			;RESET 6502 STACK
+	txs
+	jsr	osnewl
+	jsr	osnewl
+	LOCATE	prt8			;MESS FOR PRESS ANY KEY
+	jsr	print
+	FX	229,1,0			;ESCAPE OFF
+	jsr	clrex			;CLR ESCAPE
+	jsr	flush			;EMPTY ALL BUFFERS
+	lda	#7			;BEEB
+	jsr	oswrch
+	jsr	osrdch			;KEY?
+
+
+**** MAIN PROGRAM ****
+
+menu	ldx	#$FF			;SET 6502 STACK
+	txs
+	FX	139,1,0
+	ldy	#0
+	tya
+	jsr	osargs
+	cmp	#4
+	beq	gotdsk
+	FX	139,1,1
+	FX	139,2,1
+gotdsk	ldy	#0
+	sty	copk			;COPY MODE OFF
+	lda	#2			;SCROLL SCREEN
+	sta	xxxx
+	FX	229,1,0			;ESCAPE OFF
+	jsr	clrex			;CLR ESCAPE
+	jsr	off			;CURSOR OFF
+	LOCATE	prt1			;PRESS MENU
+	jsr	print
+	lda	helps			;PRT HELP KEY MESS IF ANY
+	beq	upda
+	LOCATE	phelps
+	jsr	print
+upda	ldx	#29			;MAIN MENU LOOP
+	ldy	#16
+	jsr	tab
+	lda	cpage			;PRT CURRENT PAGE
+	jsr	prtnum
+	ldx	#25
+	ldy	#18
+	jsr	tab
+	lda	lpage			;PRT LAST BACKUP PAGE
+	jsr	prtnum
+repkey	jsr	flush			;CLEAR BUFFERS
+	jsr	osrdch			;KEY
+	pha				;SAVE IT
+	ora	#16			;OR BITS TO FORCE LOWER CASE '1'-'9'
+	cmp	#':'			;IS IT '*' OR ':'
+	beq	xoscli			;ALLOW USER TO TYPE A OS CALL
+	sec
+	sbc	#49
+	cmp	#8			;IS IT A PAGE CHANGE?
+	bcs	nlpa			;NO
+	pha				;IS HELP AVAILABLE? YES=4 MAX NO=8 MAX
+	lda	helps
+	beq	gosh
+	pla
+	cmp	#4
+	bcs	gosh3
+	bcc	gosh2
+gosh	pla
+gosh2	sta	cpage
+gosh3	pla
+	jmp	upda
+nlpa	pla				;NOT A PAGE SO IS IT....
+	cmp	#32
+	bcs	nccode
+	clc
+	adc	#64
+nccode	ora	#32			;A 'G'
+	cmp	#'g'
+	bne	com2			;NO
+	jsr	fromme			;DISPLAY SAVED PAGE
+	jmp	graph			;GRAPH MODE
+com2	cmp	#'t'			;A 'T'
+	bne	com3
+	jsr	fromme			;DISPLAY PAGE
+	jmp	text			;TEXT MODE
+com3	cmp	#'s'			;A 'S'?
+	bne	com4			;NO
+	jsr	saved			;SAVE CURRENT PAGE
+	jmp	menu			;BACK TO MENU
+com4	cmp	#'l'			;IS IT A 'L'
+	bne	com5			;NO
+	jsr	loaded			;LOAD PAGE IN MEMORY
+	jmp	menu			;BACK TO MENU
+com5	cmp	#'p'			;IS IT A 'P'?
+	bne	com6			;NO
+	jsr	parat2			;PARAMETER PAGE
+com6	cmp	#'a'			;IS IT A 'A'?
+	bne	com7			;NO
+	jsr	addchr			;LOAD USER CHAR IN MEMORY
+com7	cmp	#'h'			;IS IT A 'H'
+	bne	com8			;NO
+	jsr	helpin			;HELP!!
+com8	jmp	repkey			;BAD KEY SO GET ANOTHER
+
+xoscli	LOCATE	wind2			;OS COMMAND INPUT
+	jsr	print
+	jmp	soscli
+
+parat	ldx	#183			;CHECK FOR 'P' PRESSED
+	jsr	k			;KEY?
+	bne	npat			;NO
+parat2	FX	11,0,0			;SLOW KEY INPUT
+	lda	#9
+	jsr	workou+3		;SAVE WORK
+	jsr	copyf2
+	jsr	pram			;PARAMETER ROUTINE
+	jsr	work			;UPDATE VARABLES CHANGES
+	lda	#9
+	jsr	workou+3		;RESTORE WORK
+	jsr	copyf
+	FX	11,32,0			;SPEED KEY INPUT
+	ldx	#201			;let go of return key first
+	jsr	untilf
+npat	rts
+
+fromme	jsr	workou			;work out pages out set ie page 4*$400
+copyf	lda	(a1),Y			;copy from memory to screen
+	sta	(a2),Y
+	iny
+	bne	copyf
+	inc	a1+1
+	inc	a2+1
+	dex
+	bne	copyf
+	rts
+
+tomem	jsr	workou			;work out page offset
+copyf2	lda	(a2),Y			;save page from screen to memory
+	sta	(a1),Y
+	iny
+	bne	copyf2
+	inc	a1+1
+	inc	a2+1
+	dex
+	bne	copyf2
+	rts
+
+ioli	ldx	#0			;input as a command line
+	stx	x
+ag	jsr	osrdch			;KEY
+	cmp	#27			;ESCAPE?
+	bne	glett			;NO
+	jmp	escape			;FORCE ERROR
+glett	cmp	#13			;RETURN?
+	beq	exlet			
+	cmp	#31			;CONTROL CHAR?
+	bcc	ag
+	cmp	#128			;CONTROL CHAR?
+	bcs	ag
+	cmp	#127			;DELETE?
+	beq	dell
+	ldx	x			;INPUT LINE FULL?
+	cpx	#80
+	bcs	ag
+	jsr	oswrch			;PRT CHR TYPED
+	beq	dell
+	ldy	x
+	sta	$700,Y			;SAVE CHAR
+	inc	x
+	bne	ag
+dell	ldx	x
+	beq	ag
+	jsr	oswrch
+	dec	x
+	jmp	ag			;GET ANOTHER CHR
+exlet	lda	#13			;MARK END OF INPUT
+	ldy	x
+	sta	$700,Y
+	rts
+	
+workou	lda	cpage			;work out page offset
+	nop
+	asl	A
+	asl	A
+	clc
+	adc	#<pages
+	sta	a1+1
+	sta	pam+$B
+	ldy	#>pages
+	sty	a1
+	sty	pam+$A
+	ldx	#4
+	lda	via
+	sta	a2
+	lda	via+1
+	sta	a2+1
+	rts
+
+loaded	jsr	wind			;ROUTINE TO LOAD FILE
+	LOCATE	prt6			;PRT OPTION SELECTED
+	jsr	print2
+	jsr	workou			;GET PAGE OFFSET
+	lda	#$FF			;CODE TO SAVE (BUILT IN)
+	jmp	exec			;DO THE LOADING
+
+loadfi	LOCATE	fname			;X,Y PTR TO FILE NAME 
+	lda	#$40			;CODE TO OPENUP
+	jsr	osfind
+	bne	noerl			;file not found
+	jmp	NULL			;ERROR
+noerl	sta	$8F			;SAVE CHANNEL NO
+	lda	#0			;SET UP BUFFER
+	sta	a1
+	lda	#$47
+	sta	a1+1
+	ldx	#4
+readfi	ldy	$8F			;CHANNEL
+	jsr	osbget			;GET BYTE
+	bcs	eof			;EOF?
+	cmp	#32
+	bcs	gochrg			;CONTROL CODE?
+	jmp	badchr			;BAD CHAR ERROR
+gochrg	ldy	#0
+	sta	(a1),Y			;SAVE GOOD CHAR
+	txa
+	pha
+	FX	$81,0,0			;GET A KEY
+	cmp	#$1B			;ESCAPE?
+	bne	nqulo
+	jmp	escape			;QUIT LOADING (ERROR)
+
+nqulo	pla
+	tax
+	clc
+	lda	a1
+	adc	#1
+	sta	a1
+	bne	readfi
+	inc	a1+1
+	dex
+	bne	readfi			;READ MORE DATA
+	ldy	$8F
+	jsr	osbget
+	bcs	eof2
+	jmp	xtra			;DATA FILE TO LONG (ERROR)
+eof	jmp	short			;DATA FILE TOO SHORT (ERROR) SOULD BE $400 BYTE LONG
+eof2	jsr	workou			;GET PAGE OFFSET
+	lda	#$47			;COPY BUFFER TO CURRENT PAGE
+	sta	a2+1
+	lda	#0
+	sta	a2
+	jsr	copyf2
+	jmp	menu			;BACK TO MENU
+
+saved	jsr	wind			;SAVE PAGE
+	LOCATE	prt3			;MESS SAVE SELECTED
+	jsr	print2
+	jsr	workou			;PAGE OFFSET
+	lda	via			;PARAMETER FOR OS SAVE
+	sta	pam+2
+	lda	via+1
+	sta	pam+3
+	lda	#0
+	
+exec	sta	opts			;SAVE OS FILE TYPE 0=SAVE $FF=LOAD
+	lda	pam+$A			;PARAMETER FOR FILE
+	clc
+	sta	pam+$E
+	lda	pam+$B
+	adc	#4
+	sta	pam+$F
+	lda	file
+	beq	newf
+	LOCATE	prt4			;PRT 'OLD FILE NAME:'
+	jsr	print
+	ldx	#0			;PRT OLD FILE NAME
+chans	lda	fname,X
+	cmp	#13
+	beq	ncha
+	jsr	oswrch
+	inx
+	bne	chans
+ncha	jsr	ret
+newf	LOCATE	prt5			;TELL USER TO TYPE FILE NAME
+	jsr	print
+	jsr	ioli			;INPUT ROUTINE
+	lda	$700
+	cmp	#13			;JUST PRESSED RETURN = SAVE AS OLD FILENAME
+	beq	fouch
+	ldy	#0
+fred	lda	$700,Y			;COPY NEW FILE NAME
+	sta	fname,Y
+	cmp	#13
+	beq	fouch
+	iny
+	bne	fred
+fouch	jsr	ret
+	lda	fname
+	cmp	#13			;EMTRY STRING?
+	bne	goodfi
+	jmp	null			;BAD FILE NAME (ERROR)
+goodfi	lda	#1			;TELLS ME YOU GOT AN OLD NAME IN MEMORY
+	sta	file
+	FX	229,0,0			;ESCAPE ON
+	lda	opts			;FIND OUT IF YOU WANT TO SAVE AS DATA/BASIC
+	bne	loadf
+	lda	$C06
+	beq	loadf2	
+	jmp	baslin
+loadf2	jsr	exists			;FIND OUT IF FILE EXIST
+loadf	lda	opts			;BASIC/DATA/ADD CHAR?
+	bmi	spclo
+	cmp	#64
+	beq	spclo2
+	LOCATE	pam			;X,Y PTR TO PARAMETER BLOCK
+	lda	opts
+	jsr	osfile
+	jmp	menu			;MAIN MENU
+
+spclo	jmp	loadfi			;BYTE BY BYTE LOAD
+spclo2	jmp	adduse			;LOAD CHR$ SET
+
+letter	sta	free			;ROUTINE TO PRT BIG LETTERS
+	lda	$C07			;CHAR SET TYPE
+	asl	A
+	tay
+	lda	oshwm,Y			;PICK PTR FOR TABLE
+	sta	a1
+	lda	oshwm+1,Y
+	sta	a1+1
+	lda	free			;WHAT CHAR DO YOU WANT?
+	sec
+	sbc	#32			;CHR$32 BECOMES CHR$0 ETC.
+	beq	nletsw
+	tax
+lmut	lda	a1			;(ASCIIn-32)*8
+	clc
+	adc	#8
+	sta	a1
+	bcc	naddme
+	inc	a1+1
+naddme	dex
+	bne	lmut
+nletsw	lda	free
+	cmp	#127			;DELETE KEY?
+	bne	send
+	ldy	#0			;CLR BIT MAP FOR DELETE
+	tya				
+tans	sta	free+1,Y		;COPY BIT MAP FOR CHR$
+	iny
+	cpy	#8
+	bne	tans
+	beq	dontra
+send	ldy	#0
+transl	lda	(a1),Y
+	sta	free+1,Y
+	iny
+	cpy	#8
+	bne	transl
+dontra	lda	#0
+	sta	say			;BIT MAP Y
+	tay
+forn1	lda	#128			;MASK BIT
+	sta	flag
+	lda	#0
+	sta	sax			;BIT MAP X
+	tya
+	pha
+	lda	free+1,Y		;GET FIRST BYTE
+	sta	a1
+	ldy	#8			;8 BYTE=1 CHR$
+forn2	tya				;SAVE COUNTER
+	pha
+	lda	gx			;WORK OUT CO-OR
+	clc
+	adc	sax
+	tax
+	lda	say
+	clc
+	adc	gy
+	tay
+	lda	a1			;GET BYTE
+	and	flag			;MASK IT
+	beq	notsa1			;PLOT A DOT IF SET
+	jsr	col1
+	jmp	notsa2
+notsa1	jsr	col0
+notsa2	inc	sax			;UPDATE SCREEN OFFSET
+	lsr	flag			;SHIFT MASK BYTE
+	pla
+	tay
+	dey
+	bne	forn2			;NEXT BIT
+	dec	say
+	pla
+	tay
+	iny
+	cpy	#8
+	bne	forn1			;UNTIL ALL BYTES DONE
+	rts
+
+**** GRAPHICS MODE ****
+
+graph	ldx	#211			;WAIT UNTIL 'G' IS LET GO
+	jsr	untilf
+	ldx	#0			;SET FLAGS UP
+	stx	gx
+	stx	gy
+	stx	lx
+	stx	ly
+	stx	lx2
+	stx	ly2
+	stx	lmode
+	stx	delay
+	stx	notg
+	stx	spe2
+	stx	lcom
+	inx
+	stx	gcol
+	FX	11,0,0
+	FX	12,0,0			;KEYS ARE RESET
+loop5	lda	#0
+	sta	skey
+	lda	delay
+	cmp	#5
+	bcc	nwrong
+	lda	#5
+	sta	delay
+nwrong	ldx	#2
+loop3	txa
+	pha
+	lda	#19
+	jsr	osbyte
+	ldx	gx
+	ldy	gy
+	jsr	eorc			;PLOT G-CURSOR ON/OFF
+	pla
+	tax
+	dex
+	bne	loop3
+	dec	spe2			;SPEED OF CURSOR
+	lda	spe2
+	bpl	loop5
+	jsr	gskey			;GET ODDS KEY
+	ldy	#0
+	sty	spe2
+	ldx	#160			;F0 PRESSED?
+	jsr	k
+	bne	inore
+	jsr	movepa			;PAGE UP/DOWN/INSERT/BACKSPC
+	jmp	nozdel
+inore	dec	delay
+	lda	delay
+	bmi	zdela
+	jmp	nozdel
+zdela	lda	speed			;SET SPEED OF CURSOR
+	sta	delay
+	lda	gx			;CROSS BOUNDRY+CURSOR KEYS ROUTINES
+	cmp	lx
+	bne	nn0
+	ldx	#179
+	jsr	k
+	beq	nn2
+nn0	ldx	#153
+	jsr	k
+	bne	nn1
+	lda	#0
+	sta	lcom
+	dec	gx
+	bpl	nn1
+	lda	#77
+	sta	gx
+nn1	ldx	#249
+	jsr	k
+	bne	nn2
+	lda	#0
+	sta	lcom
+	inc	gx
+	lda	gx
+	cmp	#78
+	bcc	nn2
+	lda	#0
+	sta	gx
+nn2	ldx	#185
+	jsr	k
+	bne	nn3
+	lda	#0
+	sta	lcom
+	inc 	gy
+	lda	gy
+	cmp	#75
+	bcc	nn3
+	lda	#0
+	sta	gy
+nn3	ldx	#169
+	jsr	k
+	bne	nn4
+	lda	#0
+	sta	lcom
+	dec	gy
+	lda	gy
+	bpl	nn4
+	lda	#74
+	sta	gy
+nn4	lda	lmode
+	bne	nozdel
+	ldx	#226			;SPACE BAR?
+	jsr	k
+	bne	noplot
+	lda	lcom			;MAKE SURE YOU HAVE NOT PLOTTED THIS PTR LAST TIME
+	cmp	#2
+	beq	noplot
+	jsr	poupda			;KEEP POINT UP DATE
+	jsr	phyc			;PLOT POINT
+	lda	#2
+	sta	lcom
+
+noplot	ldx	#224			;TAB KEY?
+	jsr	k
+	bne	nozdel
+	lda	lcom			;CHECK IF YOU HAVE'NT DONE
+	cmp	#1
+	beq	nozdel
+	jsr	poupda
+	jsr	blkc			;DELETE PTR
+	lda	#1
+	sta	lcom
+nozdel	jsr	f0pau
+	lda	skey
+	and	#64
+	bne	ctrl			;ARE YOU PRESSING CTRL KEY
+	jmp	noctrl
+ctrl	ldx	#211			;C KEY FOR COLOUR
+	jsr	k
+	bne	nocolr
+	lda	#1
+	eor	gcol
+	sta	gcol
+	eor	#1
+	sta	notg
+	jsr	bells			;BEEP
+	ldx	#211			;LET GO OF 'G'
+	jsr	untilf
+nocolr	ldx	#195			;F KEY FOR FILL
+	jsr	k
+	bne	nfilly
+	ldx	gx
+	ldy	gy
+	jsr	initf			;FILL ROUTINE
+nfilly	ldx	#210			;C FOR CIRCLE
+	jsr	k
+	bne	nocir
+	jsr	icir			;CIRCLE ROUTINE
+nocir	ldx	#217			;DELETE FOR DEL BLOCK
+	jsr	k
+	bne	ndelbl
+	jsr	vblk
+ndelbl	ldx	#162			;E FOR ERASE LAST PRT
+	jsr	k
+	bne	nodell
+	ldx	lx
+	ldy	ly
+	jsr	eorc
+	lda	#4
+	sta	spe2
+nodell	ldx	#182			;O FOR OBLONG
+	jsr	k
+	bne	noobl
+	jsr	oblong			;OBLONG ROUTINE
+noobl	ldx	#161			;W FOR WRITTING (TOGGLE)
+	jsr	k
+	bne	nletts
+	lda	#1
+	eor	lmode
+	sta	lmode
+	jsr	bells
+	ldx	#161			;LET GO OF W
+	jsr	untilf	
+	lda	#$FF
+	sta	spe2
+	jmp	loop5
+nletts	ldx	#214			;L FOR EN-LARGED
+	jsr	k
+	bne	nenlar
+	jsr	enlar			;EN-LARGED ROUTINE
+nenlar	ldx	#179			;R FOR ROTATE
+	jsr	k
+	bne	natn
+	jsr	angle			;ROTATE ROUTINE
+natn	ldx	#165			;I FOR INVERSE
+	jsr	k
+	bne	ninve
+	jsr	invert			;INVERSE
+	ldx	#165			;LET GO OF I
+	jsr	untilf
+ninve	ldx	#213			;N FOR NEW SCREEN
+	jsr	k
+	bne	noclrc
+	ldx	#77
+crlop1	txa
+	pha
+	ldy	#74
+crlop2	pla
+	pha
+	tax
+	tya
+	pha
+	jsr	col0
+	pla
+	tay
+	dey
+	bpl	crlop2
+	pla
+	tax
+	dex
+	bpl	crlop1	
+noclrc	jsr	draws			;DRAW A LINE
+	ldx	#196			;Y KEY TO CLEAR Y LINE
+	jsr	k
+	bne	noygli
+	ldy	#74
+gyli1	tya
+	pha
+	ldx	gx
+	jsr	col0
+	pla
+	tay
+	dey
+	bpl	gyli1
+noygli	ldx	#201			;RETURN KEY?
+	jsr	k
+	bne	noretu
+	lda	#5
+	sta	spe2
+	lda	#0
+	sta	gx
+	dec	gy
+	lda	gy
+	bpl	noretu
+	lda	#74
+	sta	gy
+noretu	ldx	#229				;M FOR MIRROR
+	jsr	k
+	bne	nmirr
+	jsr	mirror			;MIRROR ROUTINE
+	ldx	#229			;LET GO OF M
+	jsr	untilf
+nmirr	ldx	#233			;COPY FOR COPY BLOCK
+	jsr	k
+	bne	ngcop
+	jsr	copyg			;COPY ROUTINE
+ngcop	ldx	#163			;T FOR TEXT MODE
+	jsr	k
+	bne	notemo
+	jmp	text
+notemo	ldx	#209			;S FOR SIDE COLOUR
+	jsr	k
+	bne	noside
+	ldy	#24
+	ldx	#0
+	jsr	tab
+	lda	chr			;COLOUR VAR
+	jsr	yli
+noside	ldx	#212			;H FOR H  E  L L LP PP!!
+	jsr	k
+	bne	nhkey2
+	jsr	helpin
+	lda	helps
+	beq	nhkey2
+	ldx	#240
+	jsr	untilf
+nhkey2	ldx	#181			;U FOR SYSTEM UPDATE
+	jsr	k
+	bne	nupda
+	jsr	udpres
+nupda	jsr	parat			;PARAMETER ROUTINE
+	ldx	#194			;X FOR X LINE
+	jsr	k
+	bne	noctrl
+	jsr	line
+noctrl	lda	lmode			;WRITTING MODE
+	beq	to
+	ldx	#201			;RETURN?
+	jsr	k
+	bne	noreti
+	lda	#0
+	sta	gx
+	lda	#4
+	sta	spe2
+	sec
+	lda	gy
+	sbc	#8
+	bpl	endy
+	lda	#0
+endy	sta	gy
+noreti	FX	$81,0,0			;GET KEY
+	bcs	to			;DON'T ALLOW CONTROL CHR
+	txa
+	cmp	#32			;CHECK CHR$ RANGE
+	bcc	to
+	cmp	#127			;DELETE?
+	bcc	normal
+	bne	to
+	lda	gx			;SBC DELETE CHR$ BLOCK
+	sec
+	sbc	#8
+	bpl	posnum
+	lda	#0
+posnum	sta	gx
+	lda	#127			;DELETE CODE
+	jsr	letter			;BIG WRITTING
+	jmp	to
+normal	jsr	letter			;BIG WRITTING
+	lda	gx
+	cmp	#69			;CAN YOU FIT ANY MORE BIG CHR$ ON THIS LINE?
+	bcs	to
+	clc				;YES SO UPDATE CO-OR
+	adc	#8
+	sta	gx
+to	jsr	flush			;FLUSH BUFFER
+	jsr	system			;MORE COMMANDS
+	jmp	loop5			;MAIN GRAPHIC LOOP
+
+system	lda	copk			;COMMAND BOTH IN TEXT+GRAPHIC
+	beq	goes
+	rts
+goes	lda	skey			;SPECIAL KEY
+	and	#64
+	bne	ncolk
+	jmp	ncontk
+ncolk	ldx	#228			;B FOR BACKUP
+	jsr	k
+	bne	noback
+	lda	#8			;PAGE8+1 IS BACKUP
+	jsr	workou+3
+	jsr	copyf2
+	lda	cpage
+	sta	lpage
+noback	ldx	#197			;J IS JOINING PAGES
+	jsr	k
+	bne	njo
+	lda	via
+	sta	a2
+	lda	via+1
+	sta	a2+1
+	lda	#0
+	sta	a1
+	lda	#<backup		;JOIN BACKUP PAGE WITH EDITING PAGE
+	sta	a1+1
+	ldx	#4
+ld1	ldy	#0
+ld2	lda	(a2),Y
+	cmp	#32
+	beq	nn
+	cmp	#160			;32+128=160 SAME AS SPACE
+	bne	nfr
+nn	lda	(a1),Y
+	sta	(a2),Y
+nfr	iny
+	bne	ld2
+	inc	a1+1
+	inc	a2+1
+	dex
+	bne	ld1
+njo	ldx	#225			;Z= ZAP BACKUP PAGE TO CURRENT PAGE
+	jsr	k
+	bne	ncontk
+	lda	#8
+	jsr	workou+3
+	jsr	copyf
+ncontk	ldx	#160			;THIS IS FOR THE SAKE OF IT (KEYBRD CRASH)
+	jsr	k
+	beq	nest
+	ldx	#240			;ESCAPE?
+	jsr	k
+	beq	sysex
+nest	rts
+
+sysex	jsr	gskey
+	lda	skey
+	and	#64			;CTRL ESCAPE?
+	beq	nquit
+	jmp	menu
+nquit	jsr	tomem			;SAVE PICTURE IF ESCAPE
+	jmp	menu
+
+line	ldx	#77			;DRAW A X LINE GRAPHIC
+dline	txa
+	pha
+	ldy	gy
+	jsr	col0			;BLACK NORMALY
+	pla
+	tax
+	dex
+	bpl	dline
+	rts
+
+movepa	ldx	#153			;CURSOR LEFT (GRAPHIC BACKSPC)
+	jsr	k
+	bne	nbkspc
+	lda	gx
+	sta	sax
+	lda	gy
+	sta	say
+backsp	inc	sax
+	ldx	sax
+	ldy	say
+	jsr	getpo
+	ldx	flag
+	beq	blkb
+	ldx	sax
+	dex
+	ldy	gy
+	jsr	phyc
+	jmp	backlo
+blkb	ldx	sax
+	dex
+	ldy	gy
+	jsr	blkc
+backlo	lda	sax
+	cmp	#77
+	bne	backsp
+	tax
+	ldy	gy
+	jsr	col0
+nbkspc	ldx	#249			;CURSOR RIGHT (INSERT GRAPHIC)
+	jsr	k
+	bne	nikspc
+	ldx	#77
+	sta	sax
+	lda	gy
+	sta	say
+iacksp	dec	sax
+	ldx	sax
+	ldy	say
+	jsr	getpo
+	ldx	flag
+	beq	ilkb
+	ldx	sax
+	inx
+	ldy	gy
+	jsr	phyc
+	jmp	iacklo
+ilkb	ldx	sax
+	inx
+	ldy	gy
+	jsr	blkc
+iacklo	lda	sax
+	cmp	gx
+	bne	iacksp
+	tax
+	ldy	gy
+	jsr	col0
+nikspc	rts
+
+text	jsr	on			;TEXT MODE
+	ldx	#1
+	ldy	#0
+	stx	overw			;OVER WRITE ON
+	dex
+	jsr	tab			;TAB 0,0
+	lda	#12
+	jsr	osbyte			;KEYBRD NORMAL
+	lda	#163			;LET GO OF 'T'
+	jsr	untilf
+textl	FX	$81,10,0		;GET A KEY
+	php				;SAVE CARRY
+	lda	#0
+	sta	ext
+	sta	per
+	stx	sp2			;SAVE KEY
+	pla				;GET CARRY
+	sta	sp1
+	jsr	gskey			;GET SPECIAL KEY
+	jsr	system
+	jsr	extra			;COMMANDS
+	lda	sp1			;GET CARRY
+	pha
+	plp
+	bcs	textl			;KEY PRESSED
+	lda	sp2
+	cmp	#13			;RETURN?
+	beq	prtvdu
+	ldx	#224			;TAB?
+	jsr	k
+	bne	txrest
+	ldx	systab
+	beq	endtab
+	jsr	tabdo
+endtab	jsr	on
+	jmp	textl
+
+txrest	lda	sp2
+	ldx	per
+	bne	prtvdu
+	cmp	#32			;CONTROL CHAR?
+	bcc	textl
+	cmp	#128			; |   |
+	bcc	prtvdu
+	cmp	#228			;F-KEY?
+	bcc	textl
+	cmp	#237			;F-KEY?
+	beq	textl
+	bcs	nech
+	sec
+	sbc	#99
+	ldx	$C04			;GO ON NEXT LINE?
+	beq	prtvdu
+	inc	ext			;YES FLAG
+	jmp	prtvdu
+nech	cmp	#247			;F-KEY
+	beq	textl
+	bcs	nech2
+	sec
+	sbc	#93
+	ldx	$C05			;NEXT LINE?
+	beq	prtvdu	
+	inc	ext			;YES
+	jmp	prtvdu
+nech2	sec
+	sbc	#248			;F-KEY?
+	tay
+	lda	f0,Y
+	ldx	$C03			;NEXT LINE?
+	beq	prtvdu
+	inc	ext			;YES
+prtvdu pha
+	lda	copk			;COPY MODE?
+	beq	dcop2
+	jsr	spos			;SAVE POS
+	ldx	gx
+	ldy	gy
+	jsr	tab
+	pla
+	cmp	#127			;DELETE
+	bne	nto
+	lda	#32			;DEL CHAR
+	jsr	oswrch
+	lda	#8
+	jsr	oswrch
+	lda	#127
+nto	jsr	oswrch
+	lda	#$86
+	jsr	osbyte			;GET CHAR AT TEXT POS
+	stx	gx
+	sty	gy
+	jsr	dpos
+	jsr	ch255			;CHR$255 AS 2ND TEXT CURSOR
+	jmp	textl
+
+scy1	jsr	Fpos			;INSERT SPC
+	ldy	#39
+overn	dey
+	lda	(a1),Y
+	iny
+	sta	(a1),Y
+	dey
+	cpy	x
+	bne	overn
+	rts
+
+scy2	jsr	Fpos			;DEL SPC
+	ldy	x
+hsc2	iny
+	lda	(a1),Y
+	dey
+	sta	(a1),Y
+	iny
+	cpy	#39
+	bne	hsc2
+	lda	#32
+	sta	(a1),Y
+	rts
+
+dcop2	pla				;HERE IF INSERT MODE
+	pha
+	cmp	#13
+	beq	noverw
+	cmp	#127
+	beq	noverw
+	lda	overw
+	bne	noverw
+	jsr	scy1
+noverw	pla
+	jsr	oswrch
+	cmp	#127
+	bne	killab
+	lda	overw
+	bne	killab
+	jsr	scy2
+killab	cmp	#13
+	bne	non1
+	lda	#10
+	jsr	oswrch
+	jmp	textl
+
+non1	lda	ext			;GO ON TO NEXT LINE IF PARAMETER SET
+	beq	non2
+	jsr	spos
+	inc	a1+1
+	lda	a1+1
+	cmp	#25
+	bcc	eua
+	lda	#0
+	sta	a1+1
+eua	dec	a1
+	jsr	dpos
+non2	jmp	textl
+	
+exa	lda	copk
+	bne	fredy
+	jsr	Ex
+fredy	jmp	nright
+
+extra	ldx	#160			;F0 PRESSED?
+	jsr	k
+	beq	exa
+	jsr	off
+	ldx	#153			;CURSOR UP
+	jsr	k
+	bne	nup
+	lda	#8
+	jsr	delya
+nup	ldx	#249			;CURSOR DOWN
+	jsr	k
+	bne	ndown
+	lda	#9
+	jsr	delya
+ndown	ldx	#185			;CURSOR LEFT
+	jsr	k
+	bne	nleft
+	lda	#11
+	jsr	delya
+nleft	ldx	#169			;CURSOR RIGHT
+	jsr	k
+	bne	nright
+	lda	#10
+	jsr	delya
+nright	jsr	on
+	lda	#19
+	jsr	osbyte
+	lda	skey
+	and	#64
+	bne	conon
+yes	jmp	overou	
+
+conon	lda	copk
+	bne	yes
+	ldx	#212			;HELP!!
+	jsr	k
+	bne	nhkeys
+	jsr	off
+	jsr	helpin
+	jsr	on
+	lda	helps
+	beq	nhkeys
+	ldx	#240			;LET GO OF ESCAPE
+	jsr	untilf
+nhkeys	ldx	#182			;I FOR INSERT
+	jsr	k
+	bne	novmod
+	lda	#1
+	sta	overw
+novmod	ldx	#165			;O FOR OVERWRITE
+	jsr	k
+	bne	ovmode
+	lda	#0
+	sta	overw
+ovmode	ldx	#213			;N FOR NEW SCREEN
+	jsr	k
+	bne	nclrsc
+	lda	#12
+	jsr	oswrch
+
+nclrsc	ldx	#181
+	jsr	k
+	bne	ntupda
+	jsr	tupdat
+	
+ntupda	ldx	#211			;G FOR GRAPHIC
+	jsr	k
+	bne	nocham
+	jsr	off
+	pla
+	pla
+	jmp	graph
+
+nocham	jsr	off
+	jsr	spos
+	lda	a1
+	sta	lmode
+	lda	a1+1
+	sta	gcol
+	jsr	parat
+	ldx	lmode
+	ldy	gcol
+	jsr	tab
+	jsr	on
+	ldx	#196			;Y FOR CLR Y LINE
+	jsr	k
+	bne	ncy
+	jsr	off
+	jsr	spos
+	ldy	#24
+cly	jsr	tab
+	lda	#32
+	jsr	oswrch
+	dey
+	bpl	cly
+	jsr	dpos
+	jsr	on
+
+ncy	ldx	#209			;S FOR SWAP CASE
+	jsr	k
+	bne	nswc2
+	lda	#135
+	jsr	osbyte			;GET CHAR ON SCREEN
+	txa
+	cmp	#'A'
+	bcc	nswc
+	cmp	#'Z'+1
+	bcc	docase
+	cmp	#'a'
+	bcc	nswc
+	cmp	#'z'+1
+	bcs	nswc
+docase	eor	#32
+	jsr	oswrch
+	bne	nswc2
+nswc	jsr	oswrch
+
+nswc2	ldx	#194			;X CLR X LINE
+	jsr	k
+	bne	overou
+	jsr	spos
+	jsr	cline
+overou	lda	copk			;REST WORK OUT IF IN COPY MODE
+	beq	nosd
+	lda	sp2
+	cmp	#13
+	bne	nosd
+	lda	#0
+	sta	copk
+	ldx	gx
+	ldy	gy
+	jsr	tab
+	lda	lch
+	jsr	oswrch
+	lda	#8
+	jsr	oswrch
+	jsr	pause
+	pla
+	pla
+	jmp	textl
+
+nosd	ldx	#233			;COPY=COPY MODE
+	jsr	k
+	bne	kop
+	lda	copk
+	bne	dcop
+	lda	#1
+	sta	copk
+	jsr	spos
+	stx	gx
+	sty	gy
+	jsr	pause
+	jsr	ch255
+	pla
+	pla
+	jmp	textl
+
+dcop	jsr	spos			;COPY CHAR
+	lda	#$87
+	jsr	osbyte
+	stx	sp2
+	jsr	spos
+	lda	#9
+	jsr	oswrch
+	jsr	spos
+	jsr	dpos
+	lda	sp1
+	and	#254
+	sta	sp1
+	inc	per
+kop	rts
+
+ch255	jsr	off			;PRT 2ND CURSOR
+	jsr	spos
+	ldx	gx
+	ldy	gy
+	jsr	tab
+	lda	#$87
+	jsr	osbyte
+	stx	lch
+	lda	#255
+	jsr	oswrch
+	jsr	dpos
+	jmp	on
+
+delya	jsr	oswrch			;DELAY
+	lda	#19
+	jsr	osbyte
+	jmp	osbyte
+
+invert	lda	#>eorc			;INVERSE AREA
+	sta	jump
+	lda	#<eorc
+	sta	jump+1
+
+injump	jsr	area			;GET SQUARE TO INVERSE
+	ldy	a1+1
+invl1	tya
+	pha
+	ldx	a1
+invl2	pla
+	pha
+	tay
+	txa
+	pha
+	clc
+	adc	a2
+	tax
+	tya
+	clc
+	adc	a2+1
+	tay
+	jsr	color
+	pla
+	tax
+	dex
+	bpl	invl2
+	pla
+	tay
+	dey
+	bpl	invl1
+	jmp	pause
+
+color	jmp	(jump)
+
+poupda	ldx	lx			;UP DATE POINTS PLOTTED
+	stx	lx2
+	ldx	gx
+	stx	lx
+	ldy	ly
+	sty	ly2
+	ldy	gy
+	sty	ly
+	rts	
+
+vblk	lda	#>col0			;COLOUR0
+	sta	jump
+	lda	#<col0
+	sta	jump+1
+	jmp	injump
+
+area	lda	lx			;WORK OUT SQUARE AREA COVERED
+	cmp	gx
+	bcc	cho2
+	lda	gx
+	sta	a2
+	lda	lx
+	sec
+	sbc	gx
+	bpl	donin
+cho2	lda	lx
+	sta	a2
+	lda	gx
+	sec
+	sbc	lx
+donin	sta	a1
+	lda	ly
+	cmp	gy
+	bcc	cho3
+	lda	gy
+	sta	a2+1
+	lda	ly
+	sec
+	sbc	gy	
+	bpl	donin2
+cho3	lda	ly
+	sta	a2+1
+	lda	gy
+	sec
+	sbc	ly
+donin2	sta	a1+1
+	rts
+
+udpres	lda	#9			;UP DATA OF SYSTEM
+	jsr	workou+3
+	jsr	copyf2
+	LOCATE	pupdat
+	jsr	print
+	ldx	#7
+	ldy	#0
+	jsr	tab
+	lda	notg
+	jsr	ptrue
+	ldx	#24
+	ldy	#0
+	jsr	tab
+	lda	lmode
+	jsr	ptrue
+badkey	jsr	osrdch
+	cmp	#13
+	bne	badkey
+	lda	#9
+	jsr	workou+3
+	jsr	copyf
+	ldx	#201
+	jmp	untilf
+
+ptrue	asl 	A
+	tay
+	lda	tr_fl,Y
+	sta	a1
+	lda	tr_fl+1,Y
+	sta	a1+1
+	ldy	#0
+ptlo	lda	(a1),Y
+	jsr	oswrch
+	bmi	nogo
+	iny
+	bne	ptlo
+nogo	rts
+
+
+tr_fl	dw	tab1,tab2
+
+tab1	asc	'FALS^E'
+tab2	asc	'TRU^E'
+
+
+pupdat	dfb	31
+	dfb	0
+	dfb	0
+	asc	'COLOUR:         WRITING:        <RETURN>*'
+
+phelps	dfb	31			;MESS IF HELP OK
+	dfb	7
+	dfb	22
+	dfb	yellow
+	asc	'Press'
+	dfb	green
+	asc	'H'
+	dfb	yellow
+	asc	'for help*'
+
+f0pau	ldx	#160			;F0 PRESSED
+	jsr	k
+	bne	nopamo
+	ldx	#185
+	jsr	k
+	bne	nopam2
+	ldx	#77
+	stx	a1
+gpao1	ldy	gy
+	sty	a1+1
+gpai1	ldy	a1+1
+	beq	getnpo
+	dey
+	ldx	a1
+	jsr	getpo
+	lda	flag
+	jmp	gdcol
+getnpo	lda	notg
+gdcol	ldx	a1
+	ldy	a1+1
+	jsr	blkwht
+	dec	a1+1
+	ldy	a1+1
+	bpl	gpai1
+	dec	a1
+	ldx	a1
+	bpl	gpao1
+nopamo	rts
+
+nopam2	ldx	#169
+	jsr	k
+	bne	nopamo
+	ldx	#77
+	stx	a1
+gpao2	ldy	#0
+	sty	a1+1
+gpai2	ldy	a1+1
+	cpy	gy
+	beq	getnp2
+	iny
+	ldx	a1
+	jsr	getpo
+	lda	flag
+	jmp	gdcol2
+getnp2	lda	notg
+gdcol2	ldx	a1
+	ldy	a1+1
+	jsr	blkwht
+	inc	a1+1
+	ldy	a1+1
+	dey
+	cpy	gy
+	bcc	gpai2
+	dec	a1
+	ldx	a1
+	bpl	gpao2
+	rts
+
+blkwht	cmp	#0			;WORK OUT COLOUR
+	beq	black
+	jmp	phyc
+black	jmp	blkc
+	
+oblong	jsr	area			;O FOR OBLONG
+	lda	a2+1
+	jsr	xxli1
+	lda	a2
+	jsr	yyli1
+	lda	a2+1
+	clc
+	adc	a1+1
+	jsr	xxli1
+	lda	a2
+	clc
+	adc	a1
+	jsr	yyli1
+	rts
+
+xxli1	sta	say			;GRAPHIC LINE
+	lda	a1
+	sta	sax
+xrep	lda	a1
+	clc
+	adc	a2
+	tax
+	ldy	say
+	jsr	col1
+	dec	a1
+	lda	a1
+	bpl	xrep
+	lda	sax
+	sta	a1
+	rts
+
+yyli1	sta	sax			;GRAPHIC Y
+	lda	a1+1
+	sta	say
+yrep	lda	a2+1
+	clc
+	adc	a1+1
+	tay
+	ldx	sax
+	jsr	col1
+	dec	a1+1
+	lda	a1+1
+	bpl	yrep
+	lda	say
+	sta	a1+1
+	rts
+
+copyg	jsr	scs2			;COPY GRAPHIC
+	lda	gx
+	sta	sax
+	lda	gy
+	sta	sp1
+	lda	lx2
+	sta	gx
+	lda	ly2
+	sta	gy
+	jsr	area
+	lda	sax
+	sta	gx
+	lda	sp1
+	sta	gy
+	ldy	a1+1
+inxl1	sty	sp1
+	ldx	a1
+inxl2	ldy	sp1
+	stx	sax
+	txa
+	clc
+	adc	a2
+	tax
+	tya
+	clc
+	adc	a2+1
+	tay
+	jsr	getpo2
+	lda	sp1
+	clc
+	adc	gy
+	tay
+	lda	sax
+	clc
+	adc	gx
+	tax
+	lda	flag
+	jsr	blkwht
+	ldx	sax
+	dex
+	bpl	inxl2
+	ldy	sp1
+	dey
+	bpl	inxl1
+	jmp	pause
+
+noang	rts
+
+angle	lda	gx			;R FOR ROTATE
+	cmp	lx
+	bne	noang
+	lda	gy
+	cmp	ly
+	bcc	botend
+	lda	gy
+	sec
+	sbc	ly
+	jmp	topend
+botend	lda	ly
+	sec
+	sbc	gy
+topend	sta	a1
+	ldx	#2
+atnl	txa
+	pha
+	lda	#19
+	jsr	osbyte
+	ldy	ly
+	ldx	lx
+	jsr	eorc
+	ldy	gy
+	lda	a1
+	clc
+	adc	gx
+	tax
+	jsr	eorc
+	ldy	gy
+	lda	gx
+	sec
+	sbc	a1
+	tax
+	jsr	eorc
+	lda	gx
+	clc
+	adc	a1
+	tax
+	ldy	ly
+	jsr	eorc
+	lda	gx
+	sec
+	sbc	a1
+	tax
+	ldy	ly
+	jsr	eorc
+	pla
+	tax
+	dex
+	bne	atnl
+	ldx	#153			;ROTATE RIGHT?
+	jsr	k
+	bne	nrota1
+	ldx	gx
+	stx	sp1
+	ldy	gy
+	sty	sp1+1
+	lda	gx
+	sec
+	sbc	a1
+	bmi	nrota2
+	sta	gx
+smemf	jsr	rotall
+	lda	sp1
+	sta	gx
+	lda	sp1+1
+	sta	gy
+	jmp	pause
+
+nrota1	ldx	#249			;ROTATE LEFT?
+	jsr	k
+	bne	nrota2
+	ldx	gx
+	stx	sp1
+	ldy	gy
+	sty	sp1+1
+	lda	gx
+	clc
+	adc	a1
+	cmp	#78
+	bcs	nrota2
+	sta	gx
+	jmp	smemf
+nrota2	rts
+
+rotall	jsr	area
+	jsr	scs2
+	ldy	a1+1
+scvl1	sty	f1
+	ldx	a1
+scvl2	stx	f1+1
+	lda	f1+1
+	clc
+	adc	a2
+	tax
+	lda	f1
+	clc
+	adc	a2+1
+	tay
+	jsr	getpo2
+	lda	a2
+	clc
+	adc	f1
+	tax
+	lda	a1+1
+	clc
+	adc	a2+1
+	sec
+	sbc	f1+1
+	tay
+	lda	flag
+	jsr	blkwht
+	ldx	f1+1
+	dex
+	bpl	scvl2
+	ldy	f1
+	dey
+	bpl	scvl1
+	rts
+
+scs2	jsr	savep
+	lda	#9
+	jsr	workou+3
+	jsr	copyf2
+	jmp	restp
+
+savep	ldy	#0
+splo	lda	a1,Y
+	sta	sa1,Y
+	iny
+	cpy	#4
+	bne	splo
+	rts
+
+restp	ldy	#0
+rplo	lda	sa1,Y
+	sta	a1,Y
+	iny
+	cpy	#4
+	bne	rplo
+	rts
+
+mirror	jsr	area			;M FOR MIRROR
+	jsr	scs2
+	ldy	a1+1
+scal1	sty	f1
+	ldx	a1
+scal2	stx	f1+1
+	lda	f1+1
+	clc
+	adc	a2
+	tax
+	lda	f1
+	clc
+	adc	a2+1
+	tay
+	jsr	getpo2
+	lda	a2
+	clc
+	adc	a1
+	sec
+	sbc	f1+1
+	tax
+	lda	f1
+	clc
+	adc	a2+1
+	tay
+	lda	flag
+	jsr	blkwht
+	ldx	f1+1
+	dex
+	bpl	scal2
+	ldy	f1
+	dey
+	bpl	scal1
+	jmp	pause
+	
+enlar	jsr	area			;L FOR LARGE
+	jsr	scs2
+	ldy	#0
+	sty	sp2+1
+enal1	sty	f1
+	lda	$C08
+	asl	A
+	tay
+	lda	enlarg,Y
+	sta	sp1
+	lda	enlarg+1,Y
+	tay
+height	tya
+	pha
+	ldx	#0
+	stx	sp2
+enal2	stx	f1+1
+	lda	f1+1
+	clc
+	adc	a2
+	tax
+	lda	f1
+	clc
+	adc	a2+1
+	tay
+	jsr	getpo2
+	ldx	sp1
+width	txa
+	pha
+	lda	a2
+	clc
+	adc	sp2
+	tax
+	lda	a2+1
+	clc
+	adc	sp2+1
+	tay
+	lda	flag
+	jsr	blkwht
+	inc	sp2
+	pla
+	tax
+	dex
+	bne	width
+	ldx	f1+1
+	inx
+	cpx	a1
+	bcc	enal2
+	beq	enal2
+	inc	sp2+1
+	pla
+	tay
+	dey
+	bne	height
+	ldy	f1
+	iny
+	cpy	a1+1
+	bcc	enal1
+	beq	enal1
+	jmp	pause
+
+option	str	'*OPT 1,1'
+
+wind2	dfb	28			;TEXT WINDOW
+	dfb	0
+	dfb	24
+	dfb	39
+	dfb	3
+	dfb	12
+	asc	'*'
+
+untilf	stx	a1			;REPEAT UNTIL KEY LET GO
+untilo	ldx	a1
+	jsr	k
+	beq	untilo
+	rts
+
+tabdo	jsr	off			;WORK OUT NEXT TAB POS
+	lda	#$86
+	jsr	osbyte
+	stx	a1
+	lda	#40
+	sec
+	sbc	a1
+	cmp	systab
+	bcc	ntabl
+	lda	a1
+tasub	cmp	systab
+	bcc	talow
+	sec
+	sbc	systab
+	jmp	tasub
+talow	sta	a1
+	sec
+	lda	systab
+	sbc	a1
+	tax
+	lda	#9
+tarep	jsr	oswrch
+	dex
+	bne	tarep
+ntabl	rts
+
+bells	lda	#7			;BEEP
+	locate	sound
+	jmp	osword
+
+sound	dw	1,-15,160,5
+
+	CHN	"T.BASIC"

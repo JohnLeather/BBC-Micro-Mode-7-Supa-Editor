@@ -1,0 +1,111 @@
+	LST	OFF
+
+*** VAR + MACRO LOADER ***
+
+red	equ	129
+green	equ	130
+yellow	equ	131
+blue	equ	132
+magent	equ	133
+cyan	equ	134
+white	equ	135
+gra	equ	16
+
+for	equ	980
+qualit	equ	255
+smooth	equ	80
+
+spool	equ	$509
+fname	equ	$510
+pam	equ	$5A0
+stl	equ	$600
+sth	equ	$700
+
+osbyte	equ	$FFF4
+oswrch	equ	$FFEE
+osword	equ	$FFF1
+osnewl	equ	$FFE7
+osrdch	equ	$FFE0
+oscli	equ	$FFF7
+osfile	equ	$FFDD
+osfind	equ	$FFCE
+osargs	equ	$FFDA
+osbget	equ	$FFD7
+
+x	equ	$50
+y	equ	$51
+flag	equ	$52
+sax	equ	$53
+say	equ	$54
+lbit	equ	$55
+rbit	equ	$56
+ql	equ	$58
+skey	equ	$57
+qh	equ	$59
+gx	equ	$5A
+gy	equ	$5B
+lx	equ	$5C
+ly	equ	$5D
+dvid	equ	$5E
+dvis	equ	$60
+quoth	equ	$62
+minus	equ	$64
+lres	equ	$5E
+hres	equ	$5F
+mult	equ	$60
+multi	equ	$62
+helps	equ	$65
+lx2	equ	$66
+ly2	equ	$67
+jump	equ	$68
+lcom	equ	$6A
+sa1	equ	$6B
+a1	equ	$70
+a2	equ	$72
+via	equ	$74
+lmode	equ	$76
+savek	equ	$77
+gcol	equ	$78
+notg	equ	$79
+sp1	equ	$7A
+sp2	equ	$7B
+keys	equ	$7C
+opts	equ	$7D
+copk	equ	$7E
+lch	equ	$7F
+per	equ	$80
+f1	equ	$81
+f2	equ	$83
+fillp	equ	$85
+file	equ	$86
+chr	equ	$87
+ext	equ	$89
+opti	equ	$8A
+spe2	equ	$8B
+cpage	equ	$8C
+lpage	equ	$8D
+brkkey	equ	$8E
+systab	equ	$94
+overw	equ	$95
+delay	equ	$96
+
+pages	equ	$2300
+free	equ	$C50
+filesp	equ	$B00
+speed	equ	$C01
+backup	equ	$4300
+chrset	equ	$7900
+point	equ	$5400
+
+LOCATE	MACRO
+	ldx	#>@1
+	ldy	#<@1
+	ENDM
+
+	get	l.maths,addA,addN,subA,subN,fix,fx
+
+	org	point
+
+sysjmp	dw	setup0
+
+	CHN	"T.EDIT1"

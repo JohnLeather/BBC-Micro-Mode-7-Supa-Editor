@@ -1,0 +1,29 @@
+100DEF FNpage1
+110CLS
+120PRINT"‘µ  Έ©°θ£© ·£                           ";
+130PRINT"‘µ  ½¬µκ¨μ ½¤                           ";
+140PRINT"‘υπ µ µªπϊ υπ                           ";
+150PRINT"***********                             ";
+160PRINT"‘                                       ";
+170PRINT"‘                                       ";
+180PRINT"‘                                       ";
+190PRINT"‘                                       ";
+200PRINT"‘                                       ";
+210PRINT"‘                                       ";
+220PRINT"‘                                       ";
+230PRINT"‘                                       ";
+240PRINT"‘                                       ";
+250PRINT"‘                                       ";
+260PRINT"‘                                       ";
+270PRINT"‘                                       ";
+280PRINT"‘                                       ";
+290PRINT"‘                                       ";
+300PRINT"‘                                       ";
+310PRINT"‘                                       ";
+320PRINT"‘                                       ";
+330PRINT"‘                                       ";
+340PRINT"‘                                       ";
+350PRINT"‘                                       ";
+360PRINT"‘                                       ";
+370=0
+
