@@ -1,1 +1,1 @@
-Src code written in 6502 assmebler. In order to compile the source code you need the ADE2 Assembler ROM. Given I wrote this over 30 years ago I don't have instructions on parameters required to get this to compile. The good news is that it is already in compiled binary state.
+Src code written in 6502 assmebler. In order to compile the source code you need the ADE2 Assembler ROM. Given I wrote this over 30 years ago I don't remember the instructions required to get this to compile using ADE2. The good news is that it is already in compiled binary state.
